@@ -1,0 +1,581 @@
+// client/src/pages/AdminDashboard.jsx
+import { useEffect, useState, useCallback } from 'react'
+import { useNavigate } from 'react-router-dom'
+import { api } from '../lib/api.js'
+
+// ─── Shared primitives ────────────────────────────────────────────────────
+
+const Badge = ({ children, color = 'gray' }) => {
+  const colors = {
+    green:  'bg-green-50 text-green-700 border-green-100',
+    red:    'bg-red-50 text-red-600 border-red-100',
+    amber:  'bg-amber-50 text-amber-700 border-amber-100',
+    blue:   'bg-blue-50 text-blue-700 border-blue-100',
+    gray:   'bg-gray-50 text-gray-600 border-gray-100',
+  }
+  return (
+    <span className={`inline-flex items-center px-2 py-0.5 rounded-md text-xs font-medium border ${colors[color]}`}>
+      {children}
+    </span>
+  )
+}
+
+const Stat = ({ label, value, sub, accent }) => (
+  <div className="p-4 border border-gray-100 rounded-xl bg-white">
+    <div className="text-xs text-gray-400 mb-1">{label}</div>
+    <div className={`text-2xl font-semibold tracking-tight ${accent || 'text-gray-900'}`}>{value ?? '—'}</div>
+    {sub && <div className="text-xs text-gray-400 mt-0.5">{sub}</div>}
+  </div>
+)
+
+const Table = ({ cols, rows, empty = 'No data' }) => (
+  <div className="border border-gray-100 rounded-xl overflow-hidden">
+    <table className="w-full text-sm">
+      <thead>
+        <tr className="border-b border-gray-100 bg-gray-50">
+          {cols.map(c => (
+            <th key={c} className="text-left text-xs font-medium text-gray-400 px-4 py-3">{c}</th>
+          ))}
+        </tr>
+      </thead>
+      <tbody>
+        {rows.length === 0
+          ? <tr><td colSpan={cols.length} className="px-4 py-8 text-center text-sm text-gray-300">{empty}</td></tr>
+          : rows.map((r, i) => (
+            <tr key={i} className="border-b border-gray-50 last:border-0 hover:bg-gray-50 transition-colors">
+              {r.map((cell, j) => (
+                <td key={j} className="px-4 py-3 text-gray-700">{cell}</td>
+              ))}
+            </tr>
+          ))
+        }
+      </tbody>
+    </table>
+  </div>
+)
+
+// ─── Modal ────────────────────────────────────────────────────────────────
+
+function Modal({ title, onClose, children }) {
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center">
+      <div className="absolute inset-0 bg-black/20 backdrop-blur-sm" onClick={onClose} />
+      <div className="relative bg-white rounded-2xl border border-gray-100 shadow-xl p-6 w-full max-w-md mx-4">
+        <div className="flex items-center justify-between mb-5">
+          <h3 className="font-semibold text-gray-900">{title}</h3>
+          <button onClick={onClose} className="text-gray-300 hover:text-gray-500 transition-colors text-lg leading-none">×</button>
+        </div>
+        {children}
+      </div>
+    </div>
+  )
+}
+
+function Field({ label, children }) {
+  return (
+    <div className="mb-4">
+      <label className="block text-xs font-medium text-gray-500 mb-1.5">{label}</label>
+      {children}
+    </div>
+  )
+}
+
+function Input({ ...props }) {
+  return (
+    <input {...props}
+      className="w-full px-3 py-2 text-sm border border-gray-200 rounded-lg
+        focus:outline-none focus:ring-2 focus:ring-gray-900 focus:border-transparent
+        placeholder:text-gray-300 transition-all"
+    />
+  )
+}
+
+function Select({ options, ...props }) {
+  return (
+    <select {...props}
+      className="w-full px-3 py-2 text-sm border border-gray-200 rounded-lg
+        focus:outline-none focus:ring-2 focus:ring-gray-900 bg-white transition-all">
+      {options.map(o => <option key={o.v || o} value={o.v || o}>{o.l || o}</option>)}
+    </select>
+  )
+}
+
+function ModalActions({ onClose, onSave, saving }) {
+  return (
+    <div className="flex gap-2 mt-6">
+      <button onClick={onClose}
+        className="flex-1 py-2 text-sm border border-gray-200 rounded-lg text-gray-600 hover:bg-gray-50 transition-colors">
+        Cancel
+      </button>
+      <button onClick={onSave} disabled={saving}
+        className="flex-1 py-2 text-sm bg-gray-900 text-white rounded-lg hover:bg-gray-800 disabled:opacity-40 transition-colors font-medium">
+        {saving ? 'Saving...' : 'Save'}
+      </button>
+    </div>
+  )
+}
+
+// ─── Sections ─────────────────────────────────────────────────────────────
+
+function Overview({ d }) {
+  if (!d) return <Loader />
+  const unresolved = d.alerts?.filter(a => !a.resolved) || []
+  return (
+    <div className="space-y-6">
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
+        <Stat label="Total APIs"     value={d.api_count} />
+        <Stat label="Active users"   value={d.user_count} />
+        <Stat label="Today revenue"  value={`$${d.today_revenue?.toFixed(2)}`}  accent="text-green-600" />
+        <Stat label="Today profit"   value={`$${d.today_profit?.toFixed(2)}`}   accent="text-green-600" />
+        <Stat label="Calls today"    value={d.today_calls?.toLocaleString()} />
+        <Stat label="Errors today"   value={d.today_errors} accent={d.today_errors > 0 ? 'text-red-500' : ''} />
+        <Stat label="24h burn"       value={`$${d.burn_rate_24h?.toFixed(2)}`} />
+        <Stat label="Alerts"         value={unresolved.length} accent={unresolved.length > 0 ? 'text-amber-500' : ''} />
+      </div>
+
+      {unresolved.length > 0 && (
+        <div>
+          <h3 className="text-xs font-medium text-gray-400 uppercase tracking-wide mb-3">Active alerts</h3>
+          <div className="space-y-2">
+            {unresolved.map(a => (
+              <div key={a.id} className={`flex items-start gap-3 p-3.5 rounded-xl border text-sm
+                ${a.type.includes('empty') || a.type.includes('critical')
+                  ? 'bg-red-50 border-red-100 text-red-700'
+                  : 'bg-amber-50 border-amber-100 text-amber-700'}`}>
+                <div className="w-1.5 h-1.5 rounded-full bg-current mt-1.5 flex-shrink-0" />
+                <span className="flex-1">{a.message}</span>
+                <button onClick={() => api.resolve(a.id).then(() => window.location.reload())}
+                  className="text-xs underline opacity-60 hover:opacity-100 flex-shrink-0">
+                  dismiss
+                </button>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {d.top_apis?.length > 0 && (
+        <div>
+          <h3 className="text-xs font-medium text-gray-400 uppercase tracking-wide mb-3">Top APIs today</h3>
+          <Table
+            cols={['API', 'Calls', 'Cost', 'Revenue', 'Profit']}
+            rows={d.top_apis.map(a => [
+              <span className="font-medium text-gray-900">{a.api_name}</span>,
+              parseInt(a.call_count).toLocaleString(),
+              `$${parseFloat(a.total_cost || 0).toFixed(3)}`,
+              `$${parseFloat(a.total_charged || 0).toFixed(3)}`,
+              <span className="text-green-600">${parseFloat((a.total_charged - a.total_cost) || 0).toFixed(3)}</span>,
+            ])}
+          />
+        </div>
+      )}
+
+      <div>
+        <h3 className="text-xs font-medium text-gray-400 uppercase tracking-wide mb-3">Pool health</h3>
+        <div className="grid grid-cols-5 gap-2">
+          {d.pools?.map(p => {
+            const pct = p.floor > 0 ? Math.round((p.balance / p.floor) * 100) : 100
+            const bar = pct >= 100 ? 'bg-green-500' : pct >= 50 ? 'bg-amber-400' : 'bg-red-500'
+            return (
+              <div key={p.id} className="p-3.5 border border-gray-100 rounded-xl">
+                <div className="text-xs text-gray-400 mb-1 truncate">{p.label}</div>
+                <div className="font-semibold text-gray-900 text-sm mb-2">${p.balance?.toFixed(0)}</div>
+                <div className="h-1 bg-gray-100 rounded-full">
+                  <div className={`h-1 rounded-full ${bar}`} style={{ width: `${Math.min(pct, 100)}%` }} />
+                </div>
+                <div className="text-xs text-gray-300 mt-1">{pct}%</div>
+              </div>
+            )
+          })}
+        </div>
+      </div>
+    </div>
+  )
+}
+
+function APIs({ d, onRefresh }) {
+  const [modal, setModal] = useState(null)
+  const [form, setForm]   = useState({})
+  const [saving, setSaving] = useState(false)
+  if (!d) return <Loader />
+
+  const CAT_COLOR = { ai: 'blue', payments: 'green', comms: 'gray', data: 'amber', dev: 'gray' }
+  const STATUS_COLOR = { live: 'green', paused: 'amber', pending: 'gray' }
+
+  async function save() {
+    setSaving(true)
+    try {
+      if (modal === 'add') {
+        await api.addAPI(form)
+      } else {
+        await api.editAPI(form.id, {
+          cost_per_call: parseFloat(form.cost_per_call),
+          markup:        parseFloat(form.markup),
+          status:        form.status,
+        })
+      }
+      setModal(null); onRefresh()
+    } catch (e) { alert(e.message) }
+    setSaving(false)
+  }
+
+  return (
+    <div>
+      <div className="flex items-center justify-between mb-5">
+        <div>
+          <h2 className="font-semibold text-gray-900">API Registry</h2>
+          <p className="text-xs text-gray-400 mt-0.5">{d.length} APIs registered</p>
+        </div>
+        <button onClick={() => { setForm({}); setModal('add') }}
+          className="px-3.5 py-2 bg-gray-900 text-white text-xs font-medium rounded-lg hover:bg-gray-800 transition-colors">
+          + Add API
+        </button>
+      </div>
+
+      <Table
+        cols={['Name', 'Category', 'Pool', 'Cost / call', 'Markup', 'Status', '']}
+        rows={d.map(a => [
+          <span className="font-medium text-gray-900">{a.name}</span>,
+          <Badge color={CAT_COLOR[a.category]}>{a.category}</Badge>,
+          <span className="text-gray-400 text-xs font-mono">{a.pools?.label}</span>,
+          <span className="font-mono text-xs">{a.cost_per_call > 0 ? `$${a.cost_per_call}` : 'free'}</span>,
+          <span className="font-mono text-xs">{a.markup}%</span>,
+          <Badge color={STATUS_COLOR[a.status]}>{a.status}</Badge>,
+          <button onClick={() => { setForm(a); setModal('edit') }}
+            className="text-xs text-gray-400 hover:text-gray-900 transition-colors">Edit</button>,
+        ])}
+      />
+
+      {modal && (
+        <Modal title={modal === 'add' ? 'Add API' : `Edit — ${form.name}`} onClose={() => setModal(null)}>
+          {modal === 'add' ? (
+            <>
+              <Field label="Name"><Input placeholder="Grok Image" onChange={e => setForm(f => ({ ...f, name: e.target.value }))} /></Field>
+              <Field label="Slug"><Input placeholder="grok-image" onChange={e => setForm(f => ({ ...f, slug: e.target.value }))} /></Field>
+              <Field label="Upstream URL"><Input placeholder="https://api.x.ai/v1" onChange={e => setForm(f => ({ ...f, upstreamUrl: e.target.value }))} /></Field>
+              <Field label="Master API key"><Input type="password" placeholder="sk-..." onChange={e => setForm(f => ({ ...f, masterKey: e.target.value }))} /></Field>
+              <div className="grid grid-cols-2 gap-3">
+                <Field label="Cost / call ($)"><Input type="number" placeholder="0.07" onChange={e => setForm(f => ({ ...f, costPerCall: e.target.value }))} /></Field>
+                <Field label="Markup (%)"><Input type="number" placeholder="71" onChange={e => setForm(f => ({ ...f, markup: e.target.value }))} /></Field>
+              </div>
+            </>
+          ) : (
+            <>
+              <div className="grid grid-cols-2 gap-3">
+                <Field label="Cost / call ($)"><Input type="number" value={form.cost_per_call} onChange={e => setForm(f => ({ ...f, cost_per_call: e.target.value }))} /></Field>
+                <Field label="Markup (%)"><Input type="number" value={form.markup} onChange={e => setForm(f => ({ ...f, markup: e.target.value }))} /></Field>
+              </div>
+              <Field label="Status">
+                <Select value={form.status} options={['live','paused']} onChange={e => setForm(f => ({ ...f, status: e.target.value }))} />
+              </Field>
+            </>
+          )}
+          <ModalActions onClose={() => setModal(null)} onSave={save} saving={saving} />
+        </Modal>
+      )}
+    </div>
+  )
+}
+
+function Users({ d, onRefresh }) {
+  const [modal, setModal] = useState(null)
+  const [form, setForm]   = useState({})
+  const [saving, setSaving] = useState(false)
+  if (!d) return <Loader />
+
+  async function save() {
+    setSaving(true)
+    try {
+      if (modal === 'add') {
+        await api.addUser(form)
+      } else if (modal === 'edit') {
+        if (form.credit_adj) await api.adjCreds(form.id, parseFloat(form.credit_adj), 'admin')
+        await api.editUser(form.id, { plan: form.plan, status: form.status })
+      } else if (modal === 'toggle') {
+        await api.editUser(form.id, { status: form.status === 'active' ? 'suspended' : 'active' })
+      }
+      setModal(null); onRefresh()
+    } catch (e) { alert(e.message) }
+    setSaving(false)
+  }
+
+  return (
+    <div>
+      <div className="flex items-center justify-between mb-5">
+        <div>
+          <h2 className="font-semibold text-gray-900">Users</h2>
+          <p className="text-xs text-gray-400 mt-0.5">{d.length} registered</p>
+        </div>
+        <button onClick={() => { setForm({}); setModal('add') }}
+          className="px-3.5 py-2 bg-gray-900 text-white text-xs font-medium rounded-lg hover:bg-gray-800 transition-colors">
+          + Add user
+        </button>
+      </div>
+
+      <Table
+        cols={['Email', 'Plan', 'Credits', 'Status', '']}
+        rows={d.map(u => [
+          <span className="font-medium text-gray-900">{u.email}</span>,
+          <Badge>{u.plan}</Badge>,
+          <span className="font-mono text-xs">${parseFloat(u.credits).toFixed(2)}</span>,
+          <Badge color={u.status === 'active' ? 'green' : 'red'}>{u.status}</Badge>,
+          <div className="flex gap-2">
+            <button onClick={() => { setForm(u); setModal('edit') }}
+              className="text-xs text-gray-400 hover:text-gray-900 transition-colors">Edit</button>
+            <button onClick={() => { setForm(u); setModal('toggle') }}
+              className={`text-xs transition-colors ${u.status === 'active' ? 'text-red-400 hover:text-red-600' : 'text-green-500 hover:text-green-700'}`}>
+              {u.status === 'active' ? 'Suspend' : 'Reinstate'}
+            </button>
+          </div>,
+        ])}
+      />
+
+      {modal && (
+        <Modal
+          title={modal === 'add' ? 'Add user' : modal === 'edit' ? `Edit — ${form.email}` : `${form.status === 'active' ? 'Suspend' : 'Reinstate'} ${form.email}?`}
+          onClose={() => setModal(null)}>
+          {modal === 'add' && (
+            <>
+              <Field label="Email"><Input type="email" placeholder="user@example.com" onChange={e => setForm(f => ({ ...f, email: e.target.value }))} /></Field>
+              <Field label="Password"><Input type="password" placeholder="Min 8 characters" onChange={e => setForm(f => ({ ...f, password: e.target.value }))} /></Field>
+              <Field label="Plan">
+                <Select options={['dev','creator','business']} onChange={e => setForm(f => ({ ...f, plan: e.target.value }))} />
+              </Field>
+            </>
+          )}
+          {modal === 'edit' && (
+            <>
+              <Field label="Plan">
+                <Select value={form.plan} options={['dev','creator','business']} onChange={e => setForm(f => ({ ...f, plan: e.target.value }))} />
+              </Field>
+              <Field label="Add / remove credits ($)">
+                <Input type="number" placeholder="e.g. 10 or -5" onChange={e => setForm(f => ({ ...f, credit_adj: e.target.value }))} />
+              </Field>
+            </>
+          )}
+          {modal === 'toggle' && (
+            <p className="text-sm text-gray-500 mb-4">
+              {form.status === 'active'
+                ? 'User will lose API access immediately. Credits are preserved.'
+                : 'User will regain full API access immediately.'}
+            </p>
+          )}
+          <ModalActions onClose={() => setModal(null)} onSave={save} saving={saving} />
+        </Modal>
+      )}
+    </div>
+  )
+}
+
+function Pools({ d, onRefresh }) {
+  const [form, setForm]   = useState({})
+  const [modal, setModal] = useState(null)
+  const [saving, setSaving] = useState(false)
+  if (!d) return <Loader />
+
+  async function save() {
+    setSaving(true)
+    try {
+      await api.topUp(form.id, parseFloat(form.amount))
+      setModal(null); onRefresh()
+    } catch (e) { alert(e.message) }
+    setSaving(false)
+  }
+
+  return (
+    <div>
+      <div className="flex items-center justify-between mb-5">
+        <div>
+          <h2 className="font-semibold text-gray-900">Pool Manager</h2>
+          <p className="text-xs text-gray-400 mt-0.5">Pre-funded upstream accounts</p>
+        </div>
+        <button onClick={async () => {
+          for (const p of d.filter(p => p.balance < p.floor)) {
+            await api.topUp(p.id, parseFloat(((p.floor * 1.8) - p.balance).toFixed(2)))
+          }
+          onRefresh()
+        }} className="px-3.5 py-2 border border-gray-200 text-xs font-medium rounded-lg hover:bg-gray-50 transition-colors">
+          Top-up all low
+        </button>
+      </div>
+
+      <Table
+        cols={['Pool', 'Balance', 'Floor', 'Health', 'Status', '']}
+        rows={d.map(p => {
+          const pct = p.floor > 0 ? Math.round((p.balance / p.floor) * 100) : 100
+          const barColor = pct >= 100 ? 'bg-green-500' : pct >= 50 ? 'bg-amber-400' : 'bg-red-500'
+          return [
+            <span className="font-medium text-gray-900">{p.label}</span>,
+            <span className="font-mono text-xs">${p.balance?.toFixed(2)}</span>,
+            <span className="font-mono text-xs text-gray-400">${p.floor?.toFixed(2)}</span>,
+            <div className="w-24 h-1.5 bg-gray-100 rounded-full">
+              <div className={`h-1.5 rounded-full ${barColor}`} style={{ width: `${Math.min(pct, 100)}%` }} />
+            </div>,
+            <Badge color={pct >= 100 ? 'green' : pct >= 50 ? 'amber' : 'red'}>
+              {pct >= 100 ? 'healthy' : pct >= 50 ? 'low' : 'critical'} {pct}%
+            </Badge>,
+            <button onClick={() => { setForm({ ...p, amount: '' }); setModal(true) }}
+              className="text-xs text-gray-400 hover:text-gray-900 transition-colors">Top-up</button>,
+          ]
+        })}
+      />
+
+      {modal && (
+        <Modal title={`Top-up — ${form.label}`} onClose={() => setModal(null)}>
+          <p className="text-sm text-gray-500 mb-4">
+            Balance: <strong>${form.balance?.toFixed(2)}</strong> &nbsp;/&nbsp; Floor: <strong>${form.floor?.toFixed(2)}</strong>
+          </p>
+          <Field label="Amount ($)">
+            <Input type="number" placeholder="Enter amount" value={form.amount} onChange={e => setForm(f => ({ ...f, amount: e.target.value }))} />
+          </Field>
+          <ModalActions onClose={() => setModal(null)} onSave={save} saving={saving} />
+        </Modal>
+      )}
+    </div>
+  )
+}
+
+function Billing({ d }) {
+  if (!d) return <Loader />
+  return (
+    <div>
+      <div className="mb-5">
+        <h2 className="font-semibold text-gray-900">Billing</h2>
+        <p className="text-xs text-gray-400 mt-0.5">Month to date</p>
+      </div>
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
+        <Stat label="Revenue"    value={`$${d.mtd_revenue}`}  accent="text-green-600" />
+        <Stat label="Cost"       value={`$${d.mtd_cost}`} />
+        <Stat label="Profit"     value={`$${d.mtd_profit}`}   accent="text-green-600" />
+        <Stat label="Margin"     value={`${d.margin_pct}%`}   accent="text-green-600" />
+      </div>
+      <div className="mt-4 p-4 border border-gray-100 rounded-xl">
+        <div className="text-xs text-gray-400 mb-1">Total calls this month</div>
+        <div className="text-3xl font-semibold tracking-tight">{d.call_count?.toLocaleString()}</div>
+      </div>
+    </div>
+  )
+}
+
+function Logs({ d, onRefresh }) {
+  if (!d) return <Loader />
+  const rows = Array.isArray(d) ? d : []
+  return (
+    <div>
+      <div className="flex items-center justify-between mb-5">
+        <div>
+          <h2 className="font-semibold text-gray-900">Gateway logs</h2>
+          <p className="text-xs text-gray-400 mt-0.5">Last {rows.length} requests</p>
+        </div>
+        <button onClick={onRefresh}
+          className="px-3.5 py-2 border border-gray-200 text-xs font-medium rounded-lg hover:bg-gray-50 transition-colors">
+          Refresh
+        </button>
+      </div>
+      <Table
+        cols={['Time', 'User', 'API', 'Status', 'Charged', 'Profit']}
+        rows={rows.map(r => [
+          <span className="font-mono text-xs text-gray-400">{new Date(r.ts).toLocaleTimeString()}</span>,
+          <span className="text-xs">{r.users?.email}</span>,
+          <span className="font-medium">{r.api_registry?.name}</span>,
+          <Badge color={r.http_status < 300 ? 'green' : 'red'}>{r.http_status}</Badge>,
+          <span className="font-mono text-xs">${parseFloat(r.charged || 0).toFixed(4)}</span>,
+          <span className="font-mono text-xs text-green-600">${parseFloat((r.charged - r.cost) || 0).toFixed(4)}</span>,
+        ])}
+        empty="No requests yet"
+      />
+    </div>
+  )
+}
+
+function Loader() {
+  return (
+    <div className="flex items-center justify-center h-48">
+      <div className="w-4 h-4 border-2 border-gray-200 border-t-gray-600 rounded-full animate-spin" />
+    </div>
+  )
+}
+
+// ─── Main dashboard ───────────────────────────────────────────────────────
+
+const TABS = [
+  { id: 'apis',     label: 'APIs' },
+  { id: 'users',    label: 'Users' },
+  { id: 'pools',    label: 'Pools' },
+  { id: 'overview', label: 'Overview' },
+  { id: 'billing',  label: 'Billing' },
+  { id: 'logs',     label: 'Logs' },
+]
+
+export function AdminDashboard() {
+  const [tab, setTab]   = useState('apis')
+  const [data, setData] = useState({})
+  const nav = useNavigate()
+
+  const load = useCallback(async (t) => {
+    const loaders = {
+      overview: () => api.overview(),
+      apis:     () => api.allAPIs(),
+      pools:    () => api.allPools(),
+      users:    () => api.allUsers(),
+      billing:  () => api.billing(),
+      logs:     () => api.logs(100),
+    }
+    try {
+      const result = await loaders[t]()
+      setData(d => ({ ...d, [t]: result }))
+    } catch (e) {
+      if (e.message?.includes('401') || e.message?.includes('403')) {
+        localStorage.clear(); nav('/')
+      }
+    }
+  }, [])
+
+  useEffect(() => { load(tab) }, [tab])
+
+  function signOut() { localStorage.clear(); nav('/') }
+
+  return (
+    <div className="min-h-screen bg-[#fafafa]">
+
+      {/* Top nav */}
+      <div className="h-14 border-b border-gray-100 bg-white flex items-center px-6 gap-6">
+        <div className="flex items-center gap-2 mr-4">
+          <div className="w-5 h-5 rounded bg-gray-900 flex items-center justify-center">
+            <div className="w-1.5 h-1.5 rounded-full bg-white" />
+          </div>
+          <span className="font-semibold text-sm tracking-tight">APIvault</span>
+          <span className="text-xs text-gray-300 ml-1">Admin</span>
+        </div>
+
+        <div className="flex gap-1">
+          {TABS.map(t => (
+            <button key={t.id} onClick={() => setTab(t.id)}
+              className={`px-3.5 py-1.5 text-sm rounded-lg transition-colors ${
+                tab === t.id
+                  ? 'bg-gray-900 text-white font-medium'
+                  : 'text-gray-500 hover:text-gray-900 hover:bg-gray-100'
+              }`}>
+              {t.label}
+            </button>
+          ))}
+        </div>
+
+        <button onClick={signOut}
+          className="ml-auto text-xs text-gray-400 hover:text-gray-600 transition-colors">
+          Sign out
+        </button>
+      </div>
+
+      {/* Content */}
+      <div className="max-w-6xl mx-auto px-6 py-8">
+        {tab === 'overview' && <Overview d={data.overview} />}
+        {tab === 'apis'     && <APIs     d={data.apis}    onRefresh={() => load('apis')} />}
+        {tab === 'users'    && <Users    d={data.users}   onRefresh={() => load('users')} />}
+        {tab === 'pools'    && <Pools    d={data.pools}   onRefresh={() => load('pools')} />}
+        {tab === 'billing'  && <Billing  d={data.billing} />}
+        {tab === 'logs'     && <Logs     d={data.logs}    onRefresh={() => load('logs')} />}
+      </div>
+    </div>
+  )
+}
