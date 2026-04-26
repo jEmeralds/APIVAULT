@@ -28,7 +28,7 @@ function verifyToken(token) {
     const expected = createHmac('sha256', JWT_SECRET).update(`${header}.${body}`).digest('base64url')
     if (!timingSafeEqual(Buffer.from(sig), Buffer.from(expected))) return null
     const payload = JSON.parse(Buffer.from(body, 'base64url').toString())
-    if (Date.now() - payload.iat > 24 * 60 * 60 * 1000) return null
+    if (Date.now() - payload.iat > 7 * 24 * 60 * 60 * 1000) return null
     return payload
   } catch { return null }
 }
@@ -113,24 +113,37 @@ function signupRateLimited(ip) {
 // ─── Email sender via SendGrid ────────────────────────────────────────────
 
 async function sendEmail({ to, subject, html }) {
+  console.log(`[EMAIL] Attempting to send to: ${to} | Subject: ${subject}`)
+
   if (!SENDGRID_KEY) {
-    console.log(`[EMAIL SKIPPED - no SENDGRID_API_KEY] To: ${to} | Subject: ${subject}`)
+    console.log(`[EMAIL] SKIPPED — SENDGRID_API_KEY not set`)
     return
   }
 
-  await fetch('https://api.sendgrid.com/v3/mail/send', {
-    method: 'POST',
-    headers: {
-      'Authorization': `Bearer ${SENDGRID_KEY}`,
-      'Content-Type':  'application/json',
-    },
-    body: JSON.stringify({
-      personalizations: [{ to: [{ email: to }] }],
-      from:    { email: ADMIN_EMAIL || 'noreply@apivault.com', name: 'APIvault' },
-      subject,
-      content: [{ type: 'text/html', value: html }],
-    }),
-  })
+  try {
+    const res = await fetch('https://api.sendgrid.com/v3/mail/send', {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${SENDGRID_KEY}`,
+        'Content-Type':  'application/json',
+      },
+      body: JSON.stringify({
+        personalizations: [{ to: [{ email: to }] }],
+        from:    { email: ADMIN_EMAIL || 'noreply@apivault.com', name: 'APIvault' },
+        subject,
+        content: [{ type: 'text/html', value: html }],
+      }),
+    })
+
+    if (res.ok) {
+      console.log(`[EMAIL] Sent successfully to: ${to}`)
+    } else {
+      const body = await res.text()
+      console.error(`[EMAIL] SendGrid error ${res.status}:`, body)
+    }
+  } catch (err) {
+    console.error(`[EMAIL] Fetch failed:`, err.message)
+  }
 }
 
 // ─── POST /auth/login ─────────────────────────────────────────────────────
@@ -248,7 +261,7 @@ authRoute.post('/register', async (req, res) => {
   await db.from('email_verifications').insert({
     user_id:    user.id,
     token:      verifyToken,
-    expires_at: new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString(),
+    expires_at: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString(),
   })
 
   // Send verification email
