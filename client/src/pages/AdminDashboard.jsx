@@ -3,10 +3,12 @@ import { useEffect, useState, useCallback } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { api } from '../lib/api.js'
 
-// ─── Shared primitives ────────────────────────────────────────────────────
+const BASE = import.meta.env.VITE_API_URL || ''
 
-const Badge = ({ children, color = 'gray' }) => {
-  const colors = {
+// ─── Primitives ───────────────────────────────────────────────────────────
+
+function Badge({ children, color = 'gray' }) {
+  const c = {
     green:  'bg-green-50 text-green-700 border-green-100',
     red:    'bg-red-50 text-red-600 border-red-100',
     amber:  'bg-amber-50 text-amber-700 border-amber-100',
@@ -14,45 +16,55 @@ const Badge = ({ children, color = 'gray' }) => {
     gray:   'bg-gray-50 text-gray-600 border-gray-100',
   }
   return (
-    <span className={`inline-flex items-center px-2 py-0.5 rounded-md text-xs font-medium border ${colors[color]}`}>
+    <span className={`inline-flex items-center px-2 py-0.5 rounded-md text-xs font-medium border ${c[color]}`}>
       {children}
     </span>
   )
 }
 
-const Stat = ({ label, value, sub, accent }) => (
-  <div className="p-4 border border-gray-100 rounded-xl bg-white">
-    <div className="text-xs text-gray-400 mb-1">{label}</div>
-    <div className={`text-2xl font-semibold tracking-tight ${accent || 'text-gray-900'}`}>{value ?? '—'}</div>
-    {sub && <div className="text-xs text-gray-400 mt-0.5">{sub}</div>}
-  </div>
-)
+function Stat({ label, value, sub, accent }) {
+  return (
+    <div className="p-4 border border-gray-100 rounded-xl bg-white">
+      <div className="text-xs text-gray-400 mb-1">{label}</div>
+      <div className={`text-2xl font-semibold tracking-tight ${accent || 'text-gray-900'}`}>{value ?? '—'}</div>
+      {sub && <div className="text-xs text-gray-400 mt-0.5">{sub}</div>}
+    </div>
+  )
+}
 
-const Table = ({ cols, rows, empty = 'No data' }) => (
-  <div className="border border-gray-100 rounded-xl overflow-hidden">
-    <table className="w-full text-sm">
-      <thead>
-        <tr className="border-b border-gray-100 bg-gray-50">
-          {cols.map(c => (
-            <th key={c} className="text-left text-xs font-medium text-gray-400 px-4 py-3">{c}</th>
-          ))}
-        </tr>
-      </thead>
-      <tbody>
-        {rows.length === 0
-          ? <tr><td colSpan={cols.length} className="px-4 py-8 text-center text-sm text-gray-300">{empty}</td></tr>
-          : rows.map((r, i) => (
-            <tr key={i} className="border-b border-gray-50 last:border-0 hover:bg-gray-50 transition-colors">
-              {r.map((cell, j) => (
-                <td key={j} className="px-4 py-3 text-gray-700">{cell}</td>
-              ))}
-            </tr>
-          ))
-        }
-      </tbody>
-    </table>
-  </div>
-)
+function Table({ cols, rows, empty = 'No data' }) {
+  return (
+    <div className="border border-gray-100 rounded-xl overflow-hidden">
+      <table className="w-full text-sm">
+        <thead>
+          <tr className="border-b border-gray-100 bg-gray-50">
+            {cols.map(c => (
+              <th key={c} className="text-left text-xs font-medium text-gray-400 px-4 py-3">{c}</th>
+            ))}
+          </tr>
+        </thead>
+        <tbody>
+          {rows.length === 0
+            ? <tr><td colSpan={cols.length} className="px-4 py-8 text-center text-sm text-gray-300">{empty}</td></tr>
+            : rows.map((r, i) => (
+              <tr key={i} className="border-b border-gray-50 last:border-0 hover:bg-gray-50 transition-colors">
+                {r.map((cell, j) => <td key={j} className="px-4 py-3 text-gray-700">{cell}</td>)}
+              </tr>
+            ))
+          }
+        </tbody>
+      </table>
+    </div>
+  )
+}
+
+function Loader() {
+  return (
+    <div className="flex items-center justify-center h-48">
+      <div className="w-4 h-4 border-2 border-gray-200 border-t-gray-600 rounded-full animate-spin" />
+    </div>
+  )
+}
 
 // ─── Modal ────────────────────────────────────────────────────────────────
 
@@ -63,7 +75,7 @@ function Modal({ title, onClose, children }) {
       <div className="relative bg-white rounded-2xl border border-gray-100 shadow-xl p-6 w-full max-w-md mx-4">
         <div className="flex items-center justify-between mb-5">
           <h3 className="font-semibold text-gray-900">{title}</h3>
-          <button onClick={onClose} className="text-gray-300 hover:text-gray-500 transition-colors text-lg leading-none">×</button>
+          <button onClick={onClose} className="text-gray-300 hover:text-gray-500 text-xl leading-none">×</button>
         </div>
         {children}
       </div>
@@ -80,27 +92,16 @@ function Field({ label, children }) {
   )
 }
 
-function Input({ ...props }) {
+function Input(props) {
   return (
     <input {...props}
       className="w-full px-3 py-2 text-sm border border-gray-200 rounded-lg
         focus:outline-none focus:ring-2 focus:ring-gray-900 focus:border-transparent
-        placeholder:text-gray-300 transition-all"
-    />
+        placeholder:text-gray-300 transition-all" />
   )
 }
 
-function Select({ options, ...props }) {
-  return (
-    <select {...props}
-      className="w-full px-3 py-2 text-sm border border-gray-200 rounded-lg
-        focus:outline-none focus:ring-2 focus:ring-gray-900 bg-white transition-all">
-      {options.map(o => <option key={o.v || o} value={o.v || o}>{o.l || o}</option>)}
-    </select>
-  )
-}
-
-function ModalActions({ onClose, onSave, saving }) {
+function ModalActions({ onClose, onSave, saving, saveLabel = 'Save', saveColor }) {
   return (
     <div className="flex gap-2 mt-6">
       <button onClick={onClose}
@@ -108,14 +109,15 @@ function ModalActions({ onClose, onSave, saving }) {
         Cancel
       </button>
       <button onClick={onSave} disabled={saving}
-        className="flex-1 py-2 text-sm bg-gray-900 text-white rounded-lg hover:bg-gray-800 disabled:opacity-40 transition-colors font-medium">
-        {saving ? 'Saving...' : 'Save'}
+        className={`flex-1 py-2 text-sm rounded-lg font-medium disabled:opacity-40 transition-colors
+          ${saveColor || 'bg-gray-900 text-white hover:bg-gray-800'}`}>
+        {saving ? 'Saving...' : saveLabel}
       </button>
     </div>
   )
 }
 
-// ─── Sections ─────────────────────────────────────────────────────────────
+// ─── Overview ─────────────────────────────────────────────────────────────
 
 function Overview({ d }) {
   if (!d) return <Loader />
@@ -123,23 +125,25 @@ function Overview({ d }) {
   return (
     <div className="space-y-6">
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
-        <Stat label="Total APIs"     value={d.api_count} />
-        <Stat label="Active users"   value={d.user_count} />
-        <Stat label="Today revenue"  value={`$${d.today_revenue?.toFixed(2)}`}  accent="text-green-600" />
-        <Stat label="Today profit"   value={`$${d.today_profit?.toFixed(2)}`}   accent="text-green-600" />
-        <Stat label="Calls today"    value={d.today_calls?.toLocaleString()} />
-        <Stat label="Errors today"   value={d.today_errors} accent={d.today_errors > 0 ? 'text-red-500' : ''} />
-        <Stat label="24h burn"       value={`$${d.burn_rate_24h?.toFixed(2)}`} />
-        <Stat label="Alerts"         value={unresolved.length} accent={unresolved.length > 0 ? 'text-amber-500' : ''} />
+        <Stat label="Total APIs"    value={d.api_count} />
+        <Stat label="Active users"  value={d.user_count} />
+        <Stat label="Today revenue" value={`$${d.today_revenue?.toFixed(2)}`} accent="text-green-600" />
+        <Stat label="Today profit"  value={`$${d.today_profit?.toFixed(2)}`}  accent="text-green-600" />
+        <Stat label="Calls today"   value={d.today_calls?.toLocaleString()} />
+        <Stat label="Errors today"  value={d.today_errors} accent={d.today_errors > 0 ? 'text-red-500' : ''} />
+        <Stat label="24h burn"      value={`$${d.burn_rate_24h?.toFixed(2)}`} />
+        <Stat label="Open alerts"   value={unresolved.length} accent={unresolved.length > 0 ? 'text-amber-500' : ''} />
       </div>
 
       {unresolved.length > 0 && (
         <div>
-          <h3 className="text-xs font-medium text-gray-400 uppercase tracking-wide mb-3">Active alerts</h3>
+          <h3 className="text-xs font-medium text-gray-400 uppercase tracking-wide mb-3">Alerts</h3>
           <div className="space-y-2">
             {unresolved.map(a => (
               <div key={a.id} className={`flex items-start gap-3 p-3.5 rounded-xl border text-sm
-                ${a.type.includes('empty') || a.type.includes('critical')
+                ${a.type === 'user_pending' || a.type === 'user_verified'
+                  ? 'bg-blue-50 border-blue-100 text-blue-700'
+                  : a.type.includes('empty') || a.type.includes('critical')
                   ? 'bg-red-50 border-red-100 text-red-700'
                   : 'bg-amber-50 border-amber-100 text-amber-700'}`}>
                 <div className="w-1.5 h-1.5 rounded-full bg-current mt-1.5 flex-shrink-0" />
@@ -179,7 +183,7 @@ function Overview({ d }) {
             return (
               <div key={p.id} className="p-3.5 border border-gray-100 rounded-xl">
                 <div className="text-xs text-gray-400 mb-1 truncate">{p.label}</div>
-                <div className="font-semibold text-gray-900 text-sm mb-2">${p.balance?.toFixed(0)}</div>
+                <div className="font-semibold text-sm mb-2">${p.balance?.toFixed(0)}</div>
                 <div className="h-1 bg-gray-100 rounded-full">
                   <div className={`h-1 rounded-full ${bar}`} style={{ width: `${Math.min(pct, 100)}%` }} />
                 </div>
@@ -193,27 +197,22 @@ function Overview({ d }) {
   )
 }
 
+// ─── APIs ─────────────────────────────────────────────────────────────────
+
 function APIs({ d, onRefresh }) {
   const [modal, setModal] = useState(null)
   const [form, setForm]   = useState({})
   const [saving, setSaving] = useState(false)
   if (!d) return <Loader />
 
-  const CAT_COLOR = { ai: 'blue', payments: 'green', comms: 'gray', data: 'amber', dev: 'gray' }
+  const CAT_COLOR    = { ai: 'blue', payments: 'green', comms: 'gray', data: 'amber', dev: 'gray' }
   const STATUS_COLOR = { live: 'green', paused: 'amber', pending: 'gray' }
 
   async function save() {
     setSaving(true)
     try {
-      if (modal === 'add') {
-        await api.addAPI(form)
-      } else {
-        await api.editAPI(form.id, {
-          cost_per_call: parseFloat(form.cost_per_call),
-          markup:        parseFloat(form.markup),
-          status:        form.status,
-        })
-      }
+      if (modal === 'add') await api.addAPI(form)
+      else await api.editAPI(form.id, { cost_per_call: parseFloat(form.cost_per_call), markup: parseFloat(form.markup), status: form.status })
       setModal(null); onRefresh()
     } catch (e) { alert(e.message) }
     setSaving(false)
@@ -266,7 +265,10 @@ function APIs({ d, onRefresh }) {
                 <Field label="Markup (%)"><Input type="number" value={form.markup} onChange={e => setForm(f => ({ ...f, markup: e.target.value }))} /></Field>
               </div>
               <Field label="Status">
-                <Select value={form.status} options={['live','paused']} onChange={e => setForm(f => ({ ...f, status: e.target.value }))} />
+                <select value={form.status} onChange={e => setForm(f => ({ ...f, status: e.target.value }))}
+                  className="w-full px-3 py-2 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-gray-900 bg-white">
+                  <option>live</option><option>paused</option>
+                </select>
               </Field>
             </>
           )}
@@ -277,13 +279,38 @@ function APIs({ d, onRefresh }) {
   )
 }
 
+// ─── Users ────────────────────────────────────────────────────────────────
+
 function Users({ d, onRefresh }) {
-  const [modal, setModal] = useState(null)
-  const [form, setForm]   = useState({})
+  const [modal, setModal]   = useState(null)
+  const [form, setForm]     = useState({})
   const [saving, setSaving] = useState(false)
   if (!d) return <Loader />
 
-  async function save() {
+  const pending  = d.filter(u => u.status === 'pending')
+  const active   = d.filter(u => u.status === 'active')
+  const inactive = d.filter(u => u.status === 'suspended')
+
+  async function approve(u) {
+    setSaving(true)
+    try {
+      const token = localStorage.getItem('token')
+      await fetch(`${BASE}/auth/approve/${u.id}`, {
+        method: 'POST',
+        headers: { 'Authorization': `Bearer ${token}` }
+      })
+      onRefresh()
+    } catch (e) { alert(e.message) }
+    setSaving(false)
+  }
+
+  async function reject(u) {
+    if (!window.confirm(`Reject and remove ${u.email}? This cannot be undone.`)) return
+    await api.editUser(u.id, { status: 'suspended' })
+    onRefresh()
+  }
+
+  async function saveModal() {
     setSaving(true)
     try {
       if (modal === 'add') {
@@ -304,7 +331,7 @@ function Users({ d, onRefresh }) {
       <div className="flex items-center justify-between mb-5">
         <div>
           <h2 className="font-semibold text-gray-900">Users</h2>
-          <p className="text-xs text-gray-400 mt-0.5">{d.length} registered</p>
+          <p className="text-xs text-gray-400 mt-0.5">{d.length} total · {pending.length} pending</p>
         </div>
         <button onClick={() => { setForm({}); setModal('add') }}
           className="px-3.5 py-2 bg-gray-900 text-white text-xs font-medium rounded-lg hover:bg-gray-800 transition-colors">
@@ -312,44 +339,114 @@ function Users({ d, onRefresh }) {
         </button>
       </div>
 
-      <Table
-        cols={['Email', 'Plan', 'Credits', 'Status', '']}
-        rows={d.map(u => [
-          <span className="font-medium text-gray-900">{u.email}</span>,
-          <Badge>{u.plan}</Badge>,
-          <span className="font-mono text-xs">${parseFloat(u.credits).toFixed(2)}</span>,
-          <Badge color={u.status === 'active' ? 'green' : 'red'}>{u.status}</Badge>,
-          <div className="flex gap-2">
-            <button onClick={() => { setForm(u); setModal('edit') }}
-              className="text-xs text-gray-400 hover:text-gray-900 transition-colors">Edit</button>
-            <button onClick={() => { setForm(u); setModal('toggle') }}
-              className={`text-xs transition-colors ${u.status === 'active' ? 'text-red-400 hover:text-red-600' : 'text-green-500 hover:text-green-700'}`}>
-              {u.status === 'active' ? 'Suspend' : 'Reinstate'}
-            </button>
-          </div>,
-        ])}
-      />
+      {/* Pending section */}
+      {pending.length > 0 && (
+        <div className="mb-6">
+          <div className="flex items-center gap-2 mb-3">
+            <span className="text-xs font-medium text-amber-600 uppercase tracking-wide">Awaiting approval</span>
+            <span className="bg-amber-100 text-amber-700 text-xs px-2 py-0.5 rounded-full font-medium">
+              {pending.length}
+            </span>
+          </div>
+          <div className="border border-amber-100 rounded-xl overflow-hidden">
+            <table className="w-full text-sm">
+              <thead>
+                <tr className="border-b border-amber-100 bg-amber-50">
+                  <th className="text-left text-xs font-medium text-amber-500 px-4 py-3">Email</th>
+                  <th className="text-left text-xs font-medium text-amber-500 px-4 py-3">Plan requested</th>
+                  <th className="text-left text-xs font-medium text-amber-500 px-4 py-3">Signed up</th>
+                  <th className="text-left text-xs font-medium text-amber-500 px-4 py-3">Actions</th>
+                </tr>
+              </thead>
+              <tbody>
+                {pending.map(u => (
+                  <tr key={u.id} className="border-b border-amber-50 last:border-0 bg-white hover:bg-amber-50 transition-colors">
+                    <td className="px-4 py-3 font-medium text-gray-900">{u.email}</td>
+                    <td className="px-4 py-3"><Badge color="amber">{u.plan}</Badge></td>
+                    <td className="px-4 py-3 text-xs text-gray-400">{new Date(u.created_at).toLocaleDateString()}</td>
+                    <td className="px-4 py-3">
+                      <div className="flex gap-2">
+                        <button onClick={() => approve(u)} disabled={saving}
+                          className="px-3 py-1.5 bg-green-600 text-white text-xs rounded-lg hover:bg-green-700 transition-colors font-medium disabled:opacity-50">
+                          Approve
+                        </button>
+                        <button onClick={() => reject(u)}
+                          className="px-3 py-1.5 border border-red-200 text-red-600 text-xs rounded-lg hover:bg-red-50 transition-colors">
+                          Reject
+                        </button>
+                      </div>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+          <p className="text-xs text-gray-400 mt-2 px-1">
+            Approving sends the user an email notification and grants immediate access.
+          </p>
+        </div>
+      )}
 
+      {/* Active + suspended users */}
+      <div>
+        {pending.length > 0 && (
+          <div className="text-xs font-medium text-gray-400 uppercase tracking-wide mb-3">Active & suspended</div>
+        )}
+        <Table
+          cols={['Email', 'Plan', 'Credits', 'Status', '']}
+          rows={[...active, ...inactive].map(u => [
+            <span className="font-medium text-gray-900">{u.email}</span>,
+            <Badge>{u.plan}</Badge>,
+            <span className="font-mono text-xs">${parseFloat(u.credits).toFixed(2)}</span>,
+            <Badge color={u.status === 'active' ? 'green' : 'red'}>{u.status}</Badge>,
+            <div className="flex gap-2">
+              <button onClick={() => { setForm(u); setModal('edit') }}
+                className="text-xs text-gray-400 hover:text-gray-900 transition-colors">Edit</button>
+              <button onClick={() => { setForm(u); setModal('toggle') }}
+                className={`text-xs transition-colors ${u.status === 'active' ? 'text-red-400 hover:text-red-600' : 'text-green-500 hover:text-green-700'}`}>
+                {u.status === 'active' ? 'Suspend' : 'Reinstate'}
+              </button>
+            </div>,
+          ])}
+          empty="No active users yet"
+        />
+      </div>
+
+      {/* Modals */}
       {modal && (
         <Modal
-          title={modal === 'add' ? 'Add user' : modal === 'edit' ? `Edit — ${form.email}` : `${form.status === 'active' ? 'Suspend' : 'Reinstate'} ${form.email}?`}
+          title={
+            modal === 'add'    ? 'Add user' :
+            modal === 'edit'   ? `Edit — ${form.email}` :
+            modal === 'toggle' ? (form.status === 'active' ? `Suspend ${form.email}?` : `Reinstate ${form.email}?`) : ''
+          }
           onClose={() => setModal(null)}>
           {modal === 'add' && (
             <>
               <Field label="Email"><Input type="email" placeholder="user@example.com" onChange={e => setForm(f => ({ ...f, email: e.target.value }))} /></Field>
               <Field label="Password"><Input type="password" placeholder="Min 8 characters" onChange={e => setForm(f => ({ ...f, password: e.target.value }))} /></Field>
               <Field label="Plan">
-                <Select options={['dev','creator','business']} onChange={e => setForm(f => ({ ...f, plan: e.target.value }))} />
+                <select onChange={e => setForm(f => ({ ...f, plan: e.target.value }))}
+                  className="w-full px-3 py-2 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-gray-900 bg-white">
+                  <option value="dev">Developer</option>
+                  <option value="creator">Creator</option>
+                  <option value="business">Business</option>
+                </select>
               </Field>
             </>
           )}
           {modal === 'edit' && (
             <>
               <Field label="Plan">
-                <Select value={form.plan} options={['dev','creator','business']} onChange={e => setForm(f => ({ ...f, plan: e.target.value }))} />
+                <select value={form.plan} onChange={e => setForm(f => ({ ...f, plan: e.target.value }))}
+                  className="w-full px-3 py-2 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-gray-900 bg-white">
+                  <option value="dev">Developer</option>
+                  <option value="creator">Creator</option>
+                  <option value="business">Business</option>
+                </select>
               </Field>
-              <Field label="Add / remove credits ($)">
-                <Input type="number" placeholder="e.g. 10 or -5" onChange={e => setForm(f => ({ ...f, credit_adj: e.target.value }))} />
+              <Field label="Adjust credits ($)">
+                <Input type="number" placeholder="e.g. 10 to add, -5 to remove" onChange={e => setForm(f => ({ ...f, credit_adj: e.target.value }))} />
               </Field>
             </>
           )}
@@ -360,25 +457,31 @@ function Users({ d, onRefresh }) {
                 : 'User will regain full API access immediately.'}
             </p>
           )}
-          <ModalActions onClose={() => setModal(null)} onSave={save} saving={saving} />
+          <ModalActions
+            onClose={() => setModal(null)}
+            onSave={saveModal}
+            saving={saving}
+            saveLabel={modal === 'toggle' && form.status === 'active' ? 'Suspend' : 'Save'}
+            saveColor={modal === 'toggle' && form.status === 'active' ? 'bg-red-600 text-white hover:bg-red-700' : undefined}
+          />
         </Modal>
       )}
     </div>
   )
 }
 
+// ─── Pools ────────────────────────────────────────────────────────────────
+
 function Pools({ d, onRefresh }) {
-  const [form, setForm]   = useState({})
-  const [modal, setModal] = useState(null)
+  const [form, setForm]     = useState({})
+  const [modal, setModal]   = useState(false)
   const [saving, setSaving] = useState(false)
   if (!d) return <Loader />
 
   async function save() {
     setSaving(true)
-    try {
-      await api.topUp(form.id, parseFloat(form.amount))
-      setModal(null); onRefresh()
-    } catch (e) { alert(e.message) }
+    try { await api.topUp(form.id, parseFloat(form.amount)); setModal(false); onRefresh() }
+    catch (e) { alert(e.message) }
     setSaving(false)
   }
 
@@ -387,7 +490,7 @@ function Pools({ d, onRefresh }) {
       <div className="flex items-center justify-between mb-5">
         <div>
           <h2 className="font-semibold text-gray-900">Pool Manager</h2>
-          <p className="text-xs text-gray-400 mt-0.5">Pre-funded upstream accounts</p>
+          <p className="text-xs text-gray-400 mt-0.5">Pre-funded upstream API accounts</p>
         </div>
         <button onClick={async () => {
           for (const p of d.filter(p => p.balance < p.floor)) {
@@ -403,13 +506,13 @@ function Pools({ d, onRefresh }) {
         cols={['Pool', 'Balance', 'Floor', 'Health', 'Status', '']}
         rows={d.map(p => {
           const pct = p.floor > 0 ? Math.round((p.balance / p.floor) * 100) : 100
-          const barColor = pct >= 100 ? 'bg-green-500' : pct >= 50 ? 'bg-amber-400' : 'bg-red-500'
+          const bar = pct >= 100 ? 'bg-green-500' : pct >= 50 ? 'bg-amber-400' : 'bg-red-500'
           return [
             <span className="font-medium text-gray-900">{p.label}</span>,
             <span className="font-mono text-xs">${p.balance?.toFixed(2)}</span>,
             <span className="font-mono text-xs text-gray-400">${p.floor?.toFixed(2)}</span>,
             <div className="w-24 h-1.5 bg-gray-100 rounded-full">
-              <div className={`h-1.5 rounded-full ${barColor}`} style={{ width: `${Math.min(pct, 100)}%` }} />
+              <div className={`h-1.5 rounded-full ${bar}`} style={{ width: `${Math.min(pct, 100)}%` }} />
             </div>,
             <Badge color={pct >= 100 ? 'green' : pct >= 50 ? 'amber' : 'red'}>
               {pct >= 100 ? 'healthy' : pct >= 50 ? 'low' : 'critical'} {pct}%
@@ -421,19 +524,22 @@ function Pools({ d, onRefresh }) {
       />
 
       {modal && (
-        <Modal title={`Top-up — ${form.label}`} onClose={() => setModal(null)}>
+        <Modal title={`Top-up — ${form.label}`} onClose={() => setModal(false)}>
           <p className="text-sm text-gray-500 mb-4">
-            Balance: <strong>${form.balance?.toFixed(2)}</strong> &nbsp;/&nbsp; Floor: <strong>${form.floor?.toFixed(2)}</strong>
+            Balance: <strong>${form.balance?.toFixed(2)}</strong>&nbsp;/&nbsp;Floor: <strong>${form.floor?.toFixed(2)}</strong>
           </p>
           <Field label="Amount ($)">
-            <Input type="number" placeholder="Enter amount" value={form.amount} onChange={e => setForm(f => ({ ...f, amount: e.target.value }))} />
+            <Input type="number" placeholder="Amount to add" value={form.amount}
+              onChange={e => setForm(f => ({ ...f, amount: e.target.value }))} />
           </Field>
-          <ModalActions onClose={() => setModal(null)} onSave={save} saving={saving} />
+          <ModalActions onClose={() => setModal(false)} onSave={save} saving={saving} />
         </Modal>
       )}
     </div>
   )
 }
+
+// ─── Billing ──────────────────────────────────────────────────────────────
 
 function Billing({ d }) {
   if (!d) return <Loader />
@@ -444,18 +550,20 @@ function Billing({ d }) {
         <p className="text-xs text-gray-400 mt-0.5">Month to date</p>
       </div>
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
-        <Stat label="Revenue"    value={`$${d.mtd_revenue}`}  accent="text-green-600" />
-        <Stat label="Cost"       value={`$${d.mtd_cost}`} />
-        <Stat label="Profit"     value={`$${d.mtd_profit}`}   accent="text-green-600" />
-        <Stat label="Margin"     value={`${d.margin_pct}%`}   accent="text-green-600" />
+        <Stat label="Revenue" value={`$${d.mtd_revenue}`} accent="text-green-600" />
+        <Stat label="Cost"    value={`$${d.mtd_cost}`} />
+        <Stat label="Profit"  value={`$${d.mtd_profit}`} accent="text-green-600" />
+        <Stat label="Margin"  value={`${d.margin_pct}%`} accent="text-green-600" />
       </div>
-      <div className="mt-4 p-4 border border-gray-100 rounded-xl">
+      <div className="mt-4 p-4 border border-gray-100 rounded-xl bg-white">
         <div className="text-xs text-gray-400 mb-1">Total calls this month</div>
         <div className="text-3xl font-semibold tracking-tight">{d.call_count?.toLocaleString()}</div>
       </div>
     </div>
   )
 }
+
+// ─── Logs ─────────────────────────────────────────────────────────────────
 
 function Logs({ d, onRefresh }) {
   if (!d) return <Loader />
@@ -488,15 +596,7 @@ function Logs({ d, onRefresh }) {
   )
 }
 
-function Loader() {
-  return (
-    <div className="flex items-center justify-center h-48">
-      <div className="w-4 h-4 border-2 border-gray-200 border-t-gray-600 rounded-full animate-spin" />
-    </div>
-  )
-}
-
-// ─── Main dashboard ───────────────────────────────────────────────────────
+// ─── Main shell ───────────────────────────────────────────────────────────
 
 const TABS = [
   { id: 'apis',     label: 'APIs' },
@@ -514,11 +614,11 @@ export function AdminDashboard() {
 
   const load = useCallback(async (t) => {
     const loaders = {
-      overview: () => api.overview(),
-      apis:     () => api.allAPIs(),
-      pools:    () => api.allPools(),
-      users:    () => api.allUsers(),
-      billing:  () => api.billing(),
+      overview: api.overview,
+      apis:     api.allAPIs,
+      pools:    api.allPools,
+      users:    api.allUsers,
+      billing:  api.billing,
       logs:     () => api.logs(100),
     }
     try {
@@ -533,41 +633,44 @@ export function AdminDashboard() {
 
   useEffect(() => { load(tab) }, [tab])
 
-  function signOut() { localStorage.clear(); nav('/') }
+  // Show pending badge on Users tab
+  const pendingCount = data.users ? data.users.filter(u => u.status === 'pending').length : 0
 
   return (
     <div className="min-h-screen bg-[#fafafa]">
-
-      {/* Top nav */}
-      <div className="h-14 border-b border-gray-100 bg-white flex items-center px-6 gap-6">
+      <div className="h-14 border-b border-gray-100 bg-white flex items-center px-6 gap-2">
         <div className="flex items-center gap-2 mr-4">
           <div className="w-5 h-5 rounded bg-gray-900 flex items-center justify-center">
             <div className="w-1.5 h-1.5 rounded-full bg-white" />
           </div>
           <span className="font-semibold text-sm tracking-tight">APIvault</span>
-          <span className="text-xs text-gray-300 ml-1">Admin</span>
+          <span className="text-xs text-gray-300 ml-0.5">Admin</span>
         </div>
 
         <div className="flex gap-1">
           {TABS.map(t => (
             <button key={t.id} onClick={() => setTab(t.id)}
-              className={`px-3.5 py-1.5 text-sm rounded-lg transition-colors ${
+              className={`relative px-3.5 py-1.5 text-sm rounded-lg transition-colors ${
                 tab === t.id
                   ? 'bg-gray-900 text-white font-medium'
                   : 'text-gray-500 hover:text-gray-900 hover:bg-gray-100'
               }`}>
               {t.label}
+              {t.id === 'users' && pendingCount > 0 && (
+                <span className="absolute -top-1 -right-1 w-4 h-4 bg-amber-500 text-white text-xs rounded-full flex items-center justify-center leading-none">
+                  {pendingCount}
+                </span>
+              )}
             </button>
           ))}
         </div>
 
-        <button onClick={signOut}
+        <button onClick={() => { localStorage.clear(); nav('/') }}
           className="ml-auto text-xs text-gray-400 hover:text-gray-600 transition-colors">
           Sign out
         </button>
       </div>
 
-      {/* Content */}
       <div className="max-w-6xl mx-auto px-6 py-8">
         {tab === 'overview' && <Overview d={data.overview} />}
         {tab === 'apis'     && <APIs     d={data.apis}    onRefresh={() => load('apis')} />}
