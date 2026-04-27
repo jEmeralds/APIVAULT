@@ -157,15 +157,26 @@ adminRoute.get('/billing', async (req, res) => {
 // ─── API Requests ──────────────────────────────────────────────────────────
 
 adminRoute.get('/requests', async (req, res) => {
-  const { data } = await db
+  // Fetch requests and users separately — no FK between api_requests and api_registry
+  const { data: requests } = await db
     .from('api_requests')
-    .select('*, users(email), api_registry(name, category)')
+    .select('*, users(email)')
     .order('ts', { ascending: false })
-  res.json((data || []).map(r => ({
+
+  if (!requests?.length) return res.json([])
+
+  // Fetch API details by slugs
+  const slugs = [...new Set(requests.map(r => r.slug))]
+  const { data: apis } = await db.from('api_registry')
+    .select('slug, name, category').in('slug', slugs)
+  const apiMap = {}
+  apis?.forEach(a => { apiMap[a.slug] = a })
+
+  res.json(requests.map(r => ({
     id:           r.id,
     slug:         r.slug,
-    name:         r.api_registry?.name || r.name,
-    api_category: r.api_registry?.category,
+    name:         apiMap[r.slug]?.name || r.name,
+    api_category: apiMap[r.slug]?.category,
     email:        r.users?.email,
     requested_by: r.requested_by,
     status:       r.status,
@@ -175,14 +186,17 @@ adminRoute.get('/requests', async (req, res) => {
 
 adminRoute.patch('/requests/:id/approve', async (req, res) => {
   const { data: request } = await db.from('api_requests')
-    .select('*, api_registry(category), users(id)')
-    .eq('id', req.params.id).single()
+    .select('*, users(id)').eq('id', req.params.id).single()
   if (!request) return res.status(404).json({ error: 'Not found' })
+
+  // Get API category from registry using slug
+  const { data: apiData } = await db.from('api_registry')
+    .select('category').eq('slug', request.slug).single()
 
   // Grant category access to user
   const { data: access } = await db.from('user_api_access')
     .select('categories').eq('user_id', request.users.id).maybeSingle()
-  const cats = [...new Set([...(access?.categories || ['ai','dev']), request.api_registry.category])]
+  const cats = [...new Set([...(access?.categories || ['ai','dev']), apiData?.category])]
   await db.from('user_api_access')
     .upsert({ user_id: request.users.id, categories: cats }, { onConflict: 'user_id' })
 
