@@ -9,7 +9,6 @@ import { createHmac, randomBytes, timingSafeEqual } from 'crypto'
 export const authRoute = Router()
 
 const JWT_SECRET      = process.env.JWT_SECRET      || 'change-this-in-production'
-const RESEND_KEY      = process.env.RESEND_API_KEY || ''
 const APP_URL         = process.env.APP_URL          || 'http://localhost:5173'
 const ADMIN_EMAIL     = process.env.ADMIN_EMAIL      || ''
 
@@ -113,7 +112,9 @@ function signupRateLimited(ip) {
 // ─── Email sender via SendGrid ────────────────────────────────────────────
 
 async function sendEmail({ to, subject, html }) {
+  const RESEND_KEY = process.env.RESEND_API_KEY
   console.log(`[EMAIL] Attempting to send to: ${to} | Subject: ${subject}`)
+  console.log(`[EMAIL] Key present: ${!!RESEND_KEY} | Key starts: ${RESEND_KEY?.substring(0,8)}`)
 
   if (!RESEND_KEY) {
     console.log(`[EMAIL] SKIPPED — RESEND_API_KEY not set`)
