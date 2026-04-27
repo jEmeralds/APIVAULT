@@ -11,6 +11,8 @@ export const authRoute = Router()
 const JWT_SECRET      = process.env.JWT_SECRET      || 'change-this-in-production'
 const APP_URL         = process.env.APP_URL          || 'http://localhost:5173'
 const ADMIN_EMAIL     = process.env.ADMIN_EMAIL      || ''
+// Resend free tier: all emails routed to account owner until domain is verified
+const RESEND_TO       = process.env.RESEND_TO        || ''
 
 // ─── JWT ──────────────────────────────────────────────────────────────────
 
@@ -130,9 +132,13 @@ async function sendEmail({ to, subject, html }) {
       },
       body: JSON.stringify({
         from:    'APIvault <onboarding@resend.dev>',
-        to:      [to],
-        subject,
-        html,
+        to:      [RESEND_TO || to],
+        subject: RESEND_TO && RESEND_TO !== to ? `[To: ${to}] ${subject}` : subject,
+        html:    RESEND_TO && RESEND_TO !== to
+          ? `<p style="background:#f5f5f5;padding:8px;border-radius:4px;font-size:12px;color:#666">
+               Originally intended for: <strong>${to}</strong>
+             </p>${html}`
+          : html,
       }),
     })
 
