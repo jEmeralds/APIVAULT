@@ -9,7 +9,7 @@ import { createHmac, randomBytes, timingSafeEqual } from 'crypto'
 export const authRoute = Router()
 
 const JWT_SECRET      = process.env.JWT_SECRET      || 'change-this-in-production'
-const SENDGRID_KEY    = process.env.SENDGRID_API_KEY || ''
+const RESEND_KEY      = process.env.RESEND_API_KEY || ''
 const APP_URL         = process.env.APP_URL          || 'http://localhost:5173'
 const ADMIN_EMAIL     = process.env.ADMIN_EMAIL      || ''
 
@@ -115,23 +115,23 @@ function signupRateLimited(ip) {
 async function sendEmail({ to, subject, html }) {
   console.log(`[EMAIL] Attempting to send to: ${to} | Subject: ${subject}`)
 
-  if (!SENDGRID_KEY) {
-    console.log(`[EMAIL] SKIPPED — SENDGRID_API_KEY not set`)
+  if (!RESEND_KEY) {
+    console.log(`[EMAIL] SKIPPED — RESEND_API_KEY not set`)
     return
   }
 
   try {
-    const res = await fetch('https://api.sendgrid.com/v3/mail/send', {
+    const res = await fetch('https://api.resend.com/emails', {
       method: 'POST',
       headers: {
-        'Authorization': `Bearer ${SENDGRID_KEY}`,
+        'Authorization': `Bearer ${RESEND_KEY}`,
         'Content-Type':  'application/json',
       },
       body: JSON.stringify({
-        personalizations: [{ to: [{ email: to }] }],
-        from:    { email: ADMIN_EMAIL || 'noreply@apivault.com', name: 'APIvault' },
+        from:    'APIvault <onboarding@resend.dev>',
+        to:      [to],
         subject,
-        content: [{ type: 'text/html', value: html }],
+        html,
       }),
     })
 
@@ -139,7 +139,7 @@ async function sendEmail({ to, subject, html }) {
       console.log(`[EMAIL] Sent successfully to: ${to}`)
     } else {
       const body = await res.text()
-      console.error(`[EMAIL] SendGrid error ${res.status}:`, body)
+      console.error(`[EMAIL] Resend error ${res.status}:`, body)
     }
   } catch (err) {
     console.error(`[EMAIL] Fetch failed:`, err.message)
