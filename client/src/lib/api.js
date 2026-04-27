@@ -19,17 +19,20 @@ async function req(method, path, body) {
 
 export const api = {
   // Auth
-  login:  (email, password) => fetch(`${BASE}/auth/login`, {
+  login: (email, password) => fetch(`${BASE}/auth/login`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ email, password })
   }).then(r => r.json()),
 
   // User
-  me:         ()         => req('GET',  '/user/me'),
-  myAPIs:     ()         => req('GET',  '/user/apis'),
-  usage:      ()         => req('GET',  '/user/usage'),
-  revealKey:  ()         => req('POST', '/user/key/reveal'),
+  me:           ()      => req('GET',  '/user/me'),
+  myAPIs:       ()      => req('GET',  '/user/apis'),
+  marketplace:  ()      => req('GET',  '/user/marketplace'),
+  usage:        ()      => req('GET',  '/user/usage'),
+  usageStats:   ()      => req('GET',  '/user/usage/stats'),
+  requestAPI:   (slug)  => req('POST', '/user/request-api', { slug }),
+  revealKey:    ()      => req('POST', '/user/key/reveal'),
 
   // Credits
   buyCredits:    (amount)    => req('POST', '/checkout', { amount }),
