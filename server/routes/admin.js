@@ -153,3 +153,83 @@ adminRoute.get('/billing', async (req, res) => {
     call_count:  rows.length,
   })
 })
+
+// ─── API Requests ──────────────────────────────────────────────────────────
+
+adminRoute.get('/requests', async (req, res) => {
+  const { data } = await db
+    .from('api_requests')
+    .select('*, users(email), api_registry(name, category)')
+    .order('ts', { ascending: false })
+  res.json((data || []).map(r => ({
+    id:           r.id,
+    slug:         r.slug,
+    name:         r.api_registry?.name || r.name,
+    api_category: r.api_registry?.category,
+    email:        r.users?.email,
+    requested_by: r.requested_by,
+    status:       r.status,
+    ts:           r.ts,
+  })))
+})
+
+adminRoute.patch('/requests/:id/approve', async (req, res) => {
+  const { data: request } = await db.from('api_requests')
+    .select('*, api_registry(category), users(id)')
+    .eq('id', req.params.id).single()
+  if (!request) return res.status(404).json({ error: 'Not found' })
+
+  // Grant category access to user
+  const { data: access } = await db.from('user_api_access')
+    .select('categories').eq('user_id', request.users.id).maybeSingle()
+  const cats = [...new Set([...(access?.categories || ['ai','dev']), request.api_registry.category])]
+  await db.from('user_api_access')
+    .upsert({ user_id: request.users.id, categories: cats }, { onConflict: 'user_id' })
+
+  await db.from('api_requests').update({ status: 'approved' }).eq('id', req.params.id)
+  res.json({ ok: true })
+})
+
+adminRoute.patch('/requests/:id/deny', async (req, res) => {
+  await db.from('api_requests').update({ status: 'rejected' }).eq('id', req.params.id)
+  res.json({ ok: true })
+})
+
+// ─── Billing with charts ───────────────────────────────────────────────────
+
+adminRoute.get('/billing/charts', async (req, res) => {
+  const monthStart = new Date(new Date().getFullYear(), new Date().getMonth(), 1).toISOString()
+  const sevenAgo   = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString()
+
+  const [monthData, weekData, topApis, burnRate] = await Promise.all([
+    db.from('usage_log').select('charged, cost').gte('ts', monthStart),
+    db.from('usage_log').select('charged, cost, ts, api_registry(name)').gte('ts', sevenAgo).order('ts'),
+    db.rpc('top_apis_today', { lim: 5 }),
+    db.rpc('daily_burn_rate'),
+  ])
+
+  const rows    = monthData.data || []
+  const revenue = rows.reduce((s, r) => s + (r.charged || 0), 0)
+  const cost    = rows.reduce((s, r) => s + (r.cost    || 0), 0)
+
+  // Build daily breakdown from week data
+  const byDay = {}
+  ;(weekData.data || []).forEach(r => {
+    const day = r.ts.split('T')[0]
+    if (!byDay[day]) byDay[day] = { date: day, revenue: 0, cost: 0, calls: 0 }
+    byDay[day].revenue += r.charged || 0
+    byDay[day].cost    += r.cost    || 0
+    byDay[day].calls++
+  })
+
+  res.json({
+    mtd_revenue:  parseFloat(revenue.toFixed(2)),
+    mtd_cost:     parseFloat(cost.toFixed(2)),
+    mtd_profit:   parseFloat((revenue - cost).toFixed(2)),
+    margin_pct:   revenue > 0 ? parseFloat(((1 - cost / revenue) * 100).toFixed(1)) : 0,
+    call_count:   rows.length,
+    burn_rate_24h: parseFloat((burnRate.data || 0).toFixed(4)),
+    daily:        Object.values(byDay),
+    top_apis:     topApis.data || [],
+  })
+})

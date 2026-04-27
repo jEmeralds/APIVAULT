@@ -58,7 +58,11 @@ export const api = {
   resolve:   (id)            => req('PATCH', `/admin/alerts/${id}/resolve`),
 
   logs:      (n = 100)       => req('GET',  `/admin/logs?limit=${n}`),
-  billing:   ()              => req('GET',  '/admin/billing'),
+  billing:       ()          => req('GET',  '/admin/billing'),
+  billingCharts: ()          => req('GET',  '/admin/billing/charts'),
+  allRequests:   ()          => req('GET',  '/admin/requests'),
+  approveReq:    (id)        => req('PATCH', `/admin/requests/${id}/approve`),
+  denyReq:       (id)        => req('PATCH', `/admin/requests/${id}/deny`),
 
   health:    ()              => req('GET',  '/health'),
 }

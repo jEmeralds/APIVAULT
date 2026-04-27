@@ -66,6 +66,25 @@ function Loader() {
   )
 }
 
+function BarChart({ data, valueKey, labelKey, color = 'bg-indigo-500', formatVal }) {
+  if (!data?.length) return <div className="text-xs text-gray-300 py-4 text-center">No data yet</div>
+  const max = Math.max(...data.map(d => d[valueKey])) || 1
+  return (
+    <div className="flex items-end gap-1 h-20 mt-2">
+      {data.map((d, i) => (
+        <div key={i} className="flex-1 flex flex-col items-center gap-0.5 group relative">
+          <div className="absolute -top-6 left-1/2 -translate-x-1/2 hidden group-hover:block
+            bg-gray-900 text-white text-xs px-2 py-1 rounded whitespace-nowrap z-10">
+            {d[labelKey]}: {formatVal ? formatVal(d[valueKey]) : d[valueKey]}
+          </div>
+          <div className={`w-full rounded-sm ${color} opacity-70 hover:opacity-100 transition-all`}
+            style={{ height: `${Math.max((d[valueKey] / max) * 72, 2)}px` }} />
+        </div>
+      ))}
+    </div>
+  )
+}
+
 // ─── Modal ────────────────────────────────────────────────────────────────
 
 function Modal({ title, onClose, children }) {
@@ -557,13 +576,62 @@ function Billing({ d }) {
         <h2 className="font-semibold text-gray-900">Billing</h2>
         <p className="text-xs text-gray-400 mt-0.5">Month to date</p>
       </div>
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
-        <Stat label="Revenue" value={`$${d.mtd_revenue}`} accent="text-green-600" />
-        <Stat label="Cost"    value={`$${d.mtd_cost}`} />
-        <Stat label="Profit"  value={`$${d.mtd_profit}`} accent="text-green-600" />
-        <Stat label="Margin"  value={`${d.margin_pct}%`} accent="text-green-600" />
+
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 mb-5">
+        <Stat label="Revenue"    value={`$${d.mtd_revenue}`} accent="text-green-600" />
+        <Stat label="Cost"       value={`$${d.mtd_cost}`} />
+        <Stat label="Profit"     value={`$${d.mtd_profit}`}  accent="text-green-600" />
+        <Stat label="Margin"     value={`${d.margin_pct}%`}  accent="text-green-600" />
       </div>
-      <div className="mt-4 p-4 border border-gray-100 rounded-xl bg-white">
+
+      <div className="grid grid-cols-2 gap-4 mb-4">
+        {/* Revenue trend */}
+        <div className="bg-white border border-gray-100 rounded-xl p-4">
+          <div className="text-xs font-medium text-gray-500 mb-1">Daily revenue — last 7 days</div>
+          <BarChart
+            data={d.daily || []}
+            valueKey="revenue"
+            labelKey="date"
+            color="bg-green-500"
+            formatVal={v => `$${v.toFixed(2)}`}
+          />
+        </div>
+
+        {/* Call volume trend */}
+        <div className="bg-white border border-gray-100 rounded-xl p-4">
+          <div className="text-xs font-medium text-gray-500 mb-1">Daily calls — last 7 days</div>
+          <BarChart
+            data={d.daily || []}
+            valueKey="calls"
+            labelKey="date"
+            color="bg-indigo-500"
+          />
+        </div>
+      </div>
+
+      {/* Top APIs by revenue */}
+      {d.top_apis?.length > 0 && (
+        <div className="bg-white border border-gray-100 rounded-xl p-4 mb-4">
+          <div className="text-xs font-medium text-gray-500 mb-3">Top APIs by revenue</div>
+          {d.top_apis.map((a, i) => {
+            const maxRev = Math.max(...d.top_apis.map(x => x.total_charged || 0)) || 1
+            return (
+              <div key={i} className="mb-2 last:mb-0">
+                <div className="flex items-center justify-between text-xs mb-1">
+                  <span className="text-gray-700 font-medium">{a.api_name}</span>
+                  <span className="text-gray-400">${parseFloat(a.total_charged || 0).toFixed(3)}</span>
+                </div>
+                <div className="h-1.5 bg-gray-100 rounded-full">
+                  <div className="h-1.5 bg-green-400 rounded-full"
+                    style={{ width: `${((a.total_charged || 0) / maxRev) * 100}%` }} />
+                </div>
+              </div>
+            )
+          })}
+        </div>
+      )}
+
+      <div className="bg-white border border-gray-100 rounded-xl p-4">
         <div className="text-xs text-gray-400 mb-1">Total calls this month</div>
         <div className="text-3xl font-semibold tracking-tight">{d.call_count?.toLocaleString()}</div>
       </div>
@@ -604,11 +672,125 @@ function Logs({ d, onRefresh }) {
   )
 }
 
+// ─── API Requests ────────────────────────────────────────────────────────
+
+function Requests({ d, onRefresh }) {
+  const [saving, setSaving] = useState(null)
+  if (!d) return <Loader />
+
+  const pending  = d.filter(r => r.status === 'pending')
+  const resolved = d.filter(r => r.status !== 'pending')
+
+  async function grant(r) {
+    setSaving(r.id)
+    try {
+      // Find user's current categories and add the API's category
+      const user = await api.allUsers().then(users => users.find(u => u.id === r.requested_by))
+      if (user) {
+        const { data: access } = await fetch(
+          `${import.meta.env.VITE_API_URL || ''}/admin/users/${user.id}/access`,
+          { method: 'PATCH', headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${localStorage.getItem('token')}` },
+            body: JSON.stringify({ categories: [...new Set([...(user.categories || ['ai','dev']), r.api_category]), ], daily_limit: 1000 }) }
+        )
+      }
+      await fetch(`${import.meta.env.VITE_API_URL || ''}/admin/requests/${r.id}/approve`,
+        { method: 'PATCH', headers: { 'Authorization': `Bearer ${localStorage.getItem('token')}` } })
+      onRefresh()
+    } catch (e) { alert(e.message) }
+    setSaving(null)
+  }
+
+  async function deny(r) {
+    if (!window.confirm(`Deny ${r.email}'s request for ${r.name}?`)) return
+    setSaving(r.id)
+    try {
+      await fetch(`${import.meta.env.VITE_API_URL || ''}/admin/requests/${r.id}/deny`,
+        { method: 'PATCH', headers: { 'Authorization': `Bearer ${localStorage.getItem('token')}` } })
+      onRefresh()
+    } catch (e) { alert(e.message) }
+    setSaving(null)
+  }
+
+  return (
+    <div>
+      <div className="flex items-center justify-between mb-5">
+        <div>
+          <h2 className="font-semibold text-gray-900">API Access Requests</h2>
+          <p className="text-xs text-gray-400 mt-0.5">{pending.length} pending · {resolved.length} resolved</p>
+        </div>
+      </div>
+
+      {pending.length > 0 && (
+        <div className="mb-6">
+          <div className="text-xs font-medium text-blue-600 uppercase tracking-wide mb-3">
+            Pending — {pending.length}
+          </div>
+          <div className="border border-blue-100 rounded-xl overflow-hidden">
+            <table className="w-full text-sm">
+              <thead>
+                <tr className="border-b border-blue-100 bg-blue-50">
+                  <th className="text-left text-xs font-medium text-blue-500 px-4 py-3">User</th>
+                  <th className="text-left text-xs font-medium text-blue-500 px-4 py-3">API</th>
+                  <th className="text-left text-xs font-medium text-blue-500 px-4 py-3">Category</th>
+                  <th className="text-left text-xs font-medium text-blue-500 px-4 py-3">Requested</th>
+                  <th className="text-left text-xs font-medium text-blue-500 px-4 py-3">Actions</th>
+                </tr>
+              </thead>
+              <tbody>
+                {pending.map(r => (
+                  <tr key={r.id} className="border-b border-blue-50 last:border-0 bg-white hover:bg-blue-50 transition-colors">
+                    <td className="px-4 py-3 font-medium text-gray-900 text-xs">{r.email}</td>
+                    <td className="px-4 py-3 text-sm font-medium text-gray-900">{r.name}</td>
+                    <td className="px-4 py-3"><Badge color="blue">{r.api_category}</Badge></td>
+                    <td className="px-4 py-3 text-xs text-gray-400">{new Date(r.ts).toLocaleDateString()}</td>
+                    <td className="px-4 py-3">
+                      <div className="flex gap-2">
+                        <button onClick={() => grant(r)} disabled={saving === r.id}
+                          className="px-3 py-1.5 bg-green-600 text-white text-xs rounded-lg hover:bg-green-700 transition-colors font-medium disabled:opacity-50">
+                          Grant
+                        </button>
+                        <button onClick={() => deny(r)} disabled={saving === r.id}
+                          className="px-3 py-1.5 border border-red-200 text-red-600 text-xs rounded-lg hover:bg-red-50 transition-colors">
+                          Deny
+                        </button>
+                      </div>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      )}
+
+      {pending.length === 0 && (
+        <div className="text-center py-12 text-gray-300 text-sm">No pending requests</div>
+      )}
+
+      {resolved.length > 0 && (
+        <div>
+          <div className="text-xs font-medium text-gray-400 uppercase tracking-wide mb-3">Recent resolved</div>
+          <Table
+            cols={['User', 'API', 'Status', 'Date']}
+            rows={resolved.slice(0, 10).map(r => [
+              <span className="text-xs">{r.email}</span>,
+              <span className="font-medium">{r.name}</span>,
+              <Badge color={r.status === 'approved' ? 'green' : 'red'}>{r.status}</Badge>,
+              <span className="text-xs text-gray-400">{new Date(r.ts).toLocaleDateString()}</span>,
+            ])}
+          />
+        </div>
+      )}
+    </div>
+  )
+}
+
 // ─── Main shell ───────────────────────────────────────────────────────────
 
 const TABS = [
   { id: 'apis',     label: 'APIs' },
   { id: 'users',    label: 'Users' },
+  { id: 'requests', label: 'Requests' },
   { id: 'pools',    label: 'Pools' },
   { id: 'overview', label: 'Overview' },
   { id: 'billing',  label: 'Billing' },
@@ -626,7 +808,8 @@ export function AdminDashboard() {
       apis:     api.allAPIs,
       pools:    api.allPools,
       users:    api.allUsers,
-      billing:  api.billing,
+      requests: api.allRequests,
+      billing:  api.billingCharts,
       logs:     () => api.logs(100),
     }
     try {
@@ -669,6 +852,11 @@ export function AdminDashboard() {
                   {pendingCount}
                 </span>
               )}
+              {t.id === 'requests' && (data.requests?.filter(r => r.status === 'pending').length > 0) && (
+                <span className="absolute -top-1 -right-1 w-4 h-4 bg-blue-500 text-white text-xs rounded-full flex items-center justify-center leading-none">
+                  {data.requests.filter(r => r.status === 'pending').length}
+                </span>
+              )}
             </button>
           ))}
         </div>
@@ -684,6 +872,7 @@ export function AdminDashboard() {
         {tab === 'apis'     && <APIs     d={data.apis}    onRefresh={() => load('apis')} />}
         {tab === 'users'    && <Users    d={data.users}   onRefresh={() => load('users')} />}
         {tab === 'pools'    && <Pools    d={data.pools}   onRefresh={() => load('pools')} />}
+        {tab === 'requests' && <Requests d={data.requests} onRefresh={() => load('requests')} />}
         {tab === 'billing'  && <Billing  d={data.billing} />}
         {tab === 'logs'     && <Logs     d={data.logs}    onRefresh={() => load('logs')} />}
       </div>
