@@ -121,7 +121,14 @@ function ModalActions({ onClose, onSave, saving, saveLabel = 'Save', saveColor }
 
 function Overview({ d }) {
   if (!d) return <Loader />
-  const unresolved = d.alerts?.filter(a => !a.resolved) || []
+  // System alerts only on overview — user signups handled in Users tab
+  const unresolved = d.alerts?.filter(a =>
+    !a.resolved &&
+    !['user_pending','user_verified','api_requested'].includes(a.type)
+  ) || []
+  const pendingUsers = d.alerts?.filter(a =>
+    !a.resolved && a.type === 'user_pending'
+  ).length || 0
   return (
     <div className="space-y-6">
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
@@ -133,6 +140,7 @@ function Overview({ d }) {
         <Stat label="Errors today"  value={d.today_errors} accent={d.today_errors > 0 ? 'text-red-500' : ''} />
         <Stat label="24h burn"      value={`$${d.burn_rate_24h?.toFixed(2)}`} />
         <Stat label="Open alerts"   value={unresolved.length} accent={unresolved.length > 0 ? 'text-amber-500' : ''} />
+        <Stat label="Pending users"  value={pendingUsers} accent={pendingUsers > 0 ? 'text-blue-500' : ''} />
       </div>
 
       {unresolved.length > 0 && (
