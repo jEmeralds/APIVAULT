@@ -33,11 +33,26 @@ proxyRoute.all('/:service/*', auth, async (req, res) => {
 
   // Strip internal headers, build upstream request
   const upstreamPath = req.path.replace(`/${service}`, '') || '/'
-  const upstreamUrl  = api.upstream_url.replace(/\/$/, '') + upstreamPath
+  const queryString  = Object.keys(req.query).length
+    ? '?' + new URLSearchParams(req.query).toString()
+    : ''
+  const upstreamUrl  = api.upstream_url.replace(/\/$/, '') + upstreamPath + queryString
 
+  // Different APIs use different auth header formats
+  const authHeader = api.auth_header || 'Authorization'
+  const authPrefix = api.auth_prefix || 'Bearer '
   const headers = {
-    'Authorization': `Bearer ${api.masterKey}`,
-    'Content-Type':  'application/json',
+    [authHeader]: `${authPrefix}${api.masterKey}`,
+    'Content-Type': 'application/json',
+  }
+  // NewsAPI uses X-Api-Key with no prefix
+  if (api.slug === 'newsapi') {
+    delete headers['Authorization']
+    headers['X-Api-Key'] = api.masterKey
+  }
+  // GitHub public API needs no auth for basic calls
+  if (api.masterKey === 'no-key-required') {
+    delete headers['Authorization']
   }
   // Forward safe user headers (e.g. Accept, Accept-Language)
   if (req.headers['accept'])          headers['Accept']          = req.headers['accept']
