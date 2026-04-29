@@ -171,46 +171,46 @@ export function Dashboard() {
     <div className="min-h-screen bg-[#fafafa]">
 
       {/* Top nav */}
-      <div className="h-14 border-b border-gray-100 bg-white flex items-center px-6 gap-2 sticky top-0 z-10">
-        <div className="flex items-center gap-2">
-          <div className="w-5 h-5 rounded bg-gray-900 flex items-center justify-center">
-            <div className="w-1.5 h-1.5 rounded-full bg-white" />
+      <div className="border-b border-gray-100 bg-white sticky top-0 z-10">
+        <div className="flex items-center px-4 h-14 gap-2">
+          <div className="flex items-center gap-2 flex-shrink-0">
+            <div className="w-5 h-5 rounded bg-gray-900 flex items-center justify-center">
+              <div className="w-1.5 h-1.5 rounded-full bg-white" />
+            </div>
+            <span className="font-semibold text-sm tracking-tight">APIvault</span>
           </div>
-          <span className="font-semibold text-sm tracking-tight">APIvault</span>
-        </div>
 
-        <div className="flex gap-1 ml-4">
-          {[
-            { id: 'marketplace', label: 'Marketplace' },
-            { id: 'usage',       label: 'Usage' },
-            { id: 'credits',     label: 'Credits' },
-          ].map(t => (
-            <button key={t.id} onClick={() => setTab(t.id)}
-              className={`px-3.5 py-1.5 text-sm rounded-lg transition-colors ${
-                tab === t.id
-                  ? 'bg-gray-900 text-white font-medium'
-                  : 'text-gray-500 hover:text-gray-900 hover:bg-gray-100'
-              }`}>
-              {t.label}
+          <div className="flex gap-1 ml-2 overflow-x-auto scrollbar-hide">
+            {[
+              { id: 'marketplace', label: 'Marketplace' },
+              { id: 'usage',       label: 'Usage' },
+              { id: 'credits',     label: 'Credits' },
+            ].map(t => (
+              <button key={t.id} onClick={() => setTab(t.id)}
+                className={`px-3 py-1.5 text-xs sm:text-sm rounded-lg transition-colors flex-shrink-0 ${
+                  tab === t.id
+                    ? 'bg-gray-900 text-white font-medium'
+                    : 'text-gray-500 hover:text-gray-900 hover:bg-gray-100'
+                }`}>
+                {t.label}
+              </button>
+            ))}
+          </div>
+
+          <div className="ml-auto flex items-center gap-2 sm:gap-4 flex-shrink-0">
+            <div className="text-right">
+              <div className="text-xs font-medium text-gray-900">${parseFloat(me.credits).toFixed(2)}</div>
+              <div className="text-xs text-gray-400">credits</div>
+            </div>
+            <span className="text-xs px-2 py-1 bg-gray-100 text-gray-500 rounded-md capitalize hidden sm:block">{me.plan}</span>
+            <button onClick={signOut} className="text-xs text-gray-400 hover:text-gray-600 transition-colors">
+              Out
             </button>
-          ))}
-        </div>
-
-        <div className="ml-auto flex items-center gap-4">
-          <div className="text-right">
-            <div className="text-xs font-medium text-gray-900">${parseFloat(me.credits).toFixed(2)}</div>
-            <div className="text-xs text-gray-400">credits</div>
           </div>
-          <div className="w-px h-5 bg-gray-100" />
-          <div className="text-xs text-gray-500 hidden sm:block">{me.email}</div>
-          <span className="text-xs px-2 py-1 bg-gray-100 text-gray-500 rounded-md capitalize">{me.plan}</span>
-          <button onClick={signOut} className="text-xs text-gray-400 hover:text-gray-600 transition-colors">
-            Sign out
-          </button>
         </div>
       </div>
 
-      <div className="max-w-6xl mx-auto px-6 py-8">
+      <div className="max-w-6xl mx-auto px-4 sm:px-6 py-6">
 
         {/* Notice */}
         {notice && (
@@ -225,7 +225,7 @@ export function Dashboard() {
         {/* ── Marketplace ───────────────────────────────────────────────── */}
         {tab === 'marketplace' && (
           <div>
-            <div className="flex items-start justify-between mb-6">
+            <div className="flex flex-col sm:flex-row sm:items-start justify-between mb-5 gap-2">
               <div>
                 <h1 className="font-semibold text-gray-900 text-lg">API Marketplace</h1>
                 <p className="text-sm text-gray-400 mt-0.5">
@@ -241,7 +241,7 @@ export function Dashboard() {
             </div>
 
             {/* Plan info banner */}
-            <div className="mb-5 p-4 bg-blue-50 border border-blue-100 rounded-xl">
+            <div className="mb-4 p-3.5 bg-blue-50 border border-blue-100 rounded-xl">
               <div className="flex items-center justify-between">
                 <div>
                   <div className="text-sm font-medium text-blue-900 capitalize">{me.plan} plan</div>
@@ -291,7 +291,7 @@ export function Dashboard() {
             {!stats ? <Spinner /> : (
               <>
                 {/* Stats row */}
-                <div className="grid grid-cols-3 gap-3 mb-6">
+                <div className="grid grid-cols-3 gap-2 mb-4">
                   {[
                     { label: '7-day calls',  value: stats.total_calls?.toLocaleString() },
                     { label: '7-day spend',  value: `$${parseFloat(stats.total_spent || 0).toFixed(4)}` },
@@ -378,7 +378,7 @@ export function Dashboard() {
 
         {/* ── Credits ───────────────────────────────────────────────────── */}
         {tab === 'credits' && (
-          <div className="max-w-sm">
+          <div className="max-w-sm w-full">
             <h1 className="font-semibold text-gray-900 text-lg mb-6">Credits</h1>
 
             <div className="bg-white border border-gray-100 rounded-xl p-5 mb-3">
@@ -393,7 +393,7 @@ export function Dashboard() {
             <div className="bg-white border border-gray-100 rounded-xl p-5 mb-3">
               <div className="text-xs text-gray-400 mb-1">Buy credits via Paystack</div>
               <div className="text-xs text-gray-300 mb-3">Payments processed in KES</div>
-              <div className="grid grid-cols-4 gap-2">
+              <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
                 {[5, 10, 25, 50].map(amt => (
                   <button key={amt}
                     onClick={async () => {

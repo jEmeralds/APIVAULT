@@ -34,8 +34,8 @@ function Stat({ label, value, sub, accent }) {
 
 function Table({ cols, rows, empty = 'No data' }) {
   return (
-    <div className="border border-gray-100 rounded-xl overflow-hidden">
-      <table className="w-full text-sm">
+    <div className="border border-gray-100 rounded-xl overflow-hidden overflow-x-auto">
+      <table className="w-full text-sm min-w-[500px]">
         <thead>
           <tr className="border-b border-gray-100 bg-gray-50">
             {cols.map(c => (
@@ -91,7 +91,7 @@ function Modal({ title, onClose, children }) {
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center">
       <div className="absolute inset-0 bg-black/20 backdrop-blur-sm" onClick={onClose} />
-      <div className="relative bg-white rounded-2xl border border-gray-100 shadow-xl p-6 w-full max-w-md mx-4">
+      <div className="relative bg-white rounded-2xl border border-gray-100 shadow-xl p-4 sm:p-6 w-full max-w-md mx-3 sm:mx-4 max-h-[90vh] overflow-y-auto">
         <div className="flex items-center justify-between mb-5">
           <h3 className="font-semibold text-gray-900">{title}</h3>
           <button onClick={onClose} className="text-gray-300 hover:text-gray-500 text-xl leading-none">×</button>
@@ -150,7 +150,7 @@ function Overview({ d }) {
   ).length || 0
   return (
     <div className="space-y-6">
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-2 sm:gap-3">
         <Stat label="Total APIs"    value={d.api_count} />
         <Stat label="Active users"  value={d.user_count} />
         <Stat label="Today revenue" value={`$${d.today_revenue?.toFixed(2)}`} accent="text-green-600" />
@@ -203,7 +203,7 @@ function Overview({ d }) {
 
       <div>
         <h3 className="text-xs font-medium text-gray-400 uppercase tracking-wide mb-3">Pool health</h3>
-        <div className="grid grid-cols-5 gap-2">
+        <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-2">
           {d.pools?.map(p => {
             const pct = p.floor > 0 ? Math.round((p.balance / p.floor) * 100) : 100
             const bar = pct >= 100 ? 'bg-green-500' : pct >= 50 ? 'bg-amber-400' : 'bg-red-500'
@@ -615,7 +615,7 @@ function Billing({ d }) {
         <Stat label="Margin"     value={`${d.margin_pct}%`}  accent="text-green-600" />
       </div>
 
-      <div className="grid grid-cols-2 gap-4 mb-4">
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-4">
         {/* Revenue trend */}
         <div className="bg-white border border-gray-100 rounded-xl p-4">
           <div className="text-xs font-medium text-gray-500 mb-1">Daily revenue — last 7 days</div>
@@ -860,45 +860,48 @@ export function AdminDashboard() {
 
   return (
     <div className="min-h-screen bg-[#fafafa]">
-      <div className="h-14 border-b border-gray-100 bg-white flex items-center px-6 gap-2">
-        <div className="flex items-center gap-2 mr-4">
-          <div className="w-5 h-5 rounded bg-gray-900 flex items-center justify-center">
-            <div className="w-1.5 h-1.5 rounded-full bg-white" />
+      {/* Desktop nav */}
+      <div className="border-b border-gray-100 bg-white sticky top-0 z-20">
+        <div className="flex items-center px-4 h-14 gap-2">
+          <div className="flex items-center gap-2 mr-2 flex-shrink-0">
+            <div className="w-5 h-5 rounded bg-gray-900 flex items-center justify-center">
+              <div className="w-1.5 h-1.5 rounded-full bg-white" />
+            </div>
+            <span className="font-semibold text-sm tracking-tight">APIvault</span>
+            <span className="text-xs text-gray-300 hidden sm:block">Admin</span>
           </div>
-          <span className="font-semibold text-sm tracking-tight">APIvault</span>
-          <span className="text-xs text-gray-300 ml-0.5">Admin</span>
-        </div>
 
-        <div className="flex gap-1">
-          {TABS.map(t => (
-            <button key={t.id} onClick={() => setTab(t.id)}
-              className={`relative px-3.5 py-1.5 text-sm rounded-lg transition-colors ${
-                tab === t.id
-                  ? 'bg-gray-900 text-white font-medium'
-                  : 'text-gray-500 hover:text-gray-900 hover:bg-gray-100'
-              }`}>
-              {t.label}
-              {t.id === 'users' && pendingCount > 0 && (
-                <span className="absolute -top-1 -right-1 w-4 h-4 bg-amber-500 text-white text-xs rounded-full flex items-center justify-center leading-none">
-                  {pendingCount}
-                </span>
-              )}
-              {t.id === 'requests' && (data.requests?.filter(r => r.status === 'pending').length > 0) && (
-                <span className="absolute -top-1 -right-1 w-4 h-4 bg-blue-500 text-white text-xs rounded-full flex items-center justify-center leading-none">
-                  {data.requests.filter(r => r.status === 'pending').length}
-                </span>
-              )}
-            </button>
-          ))}
-        </div>
+          <div className="flex gap-1 overflow-x-auto flex-1 scrollbar-hide">
+            {TABS.map(t => (
+              <button key={t.id} onClick={() => setTab(t.id)}
+                className={`relative px-3 py-1.5 text-xs sm:text-sm rounded-lg transition-colors flex-shrink-0 ${
+                  tab === t.id
+                    ? 'bg-gray-900 text-white font-medium'
+                    : 'text-gray-500 hover:text-gray-900 hover:bg-gray-100'
+                }`}>
+                {t.label}
+                {t.id === 'users' && pendingCount > 0 && (
+                  <span className="absolute -top-1 -right-1 w-4 h-4 bg-amber-500 text-white text-xs rounded-full flex items-center justify-center leading-none">
+                    {pendingCount}
+                  </span>
+                )}
+                {t.id === 'requests' && (data.requests?.filter(r => r.status === 'pending').length > 0) && (
+                  <span className="absolute -top-1 -right-1 w-4 h-4 bg-blue-500 text-white text-xs rounded-full flex items-center justify-center leading-none">
+                    {data.requests.filter(r => r.status === 'pending').length}
+                  </span>
+                )}
+              </button>
+            ))}
+          </div>
 
-        <button onClick={() => { localStorage.clear(); nav('/') }}
-          className="ml-auto text-xs text-gray-400 hover:text-gray-600 transition-colors">
-          Sign out
-        </button>
+          <button onClick={() => { localStorage.clear(); nav('/') }}
+            className="flex-shrink-0 text-xs text-gray-400 hover:text-gray-600 transition-colors ml-2">
+            Sign out
+          </button>
+        </div>
       </div>
 
-      <div className="max-w-6xl mx-auto px-6 py-8">
+      <div className="max-w-6xl mx-auto px-4 sm:px-6 py-6">
         {tab === 'overview' && <Overview d={data.overview} />}
         {tab === 'apis'     && <APIs     d={data.apis}    onRefresh={() => load('apis')} />}
         {tab === 'users'    && <Users    d={data.users}   onRefresh={() => load('users')} />}

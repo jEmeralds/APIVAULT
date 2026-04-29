@@ -172,8 +172,8 @@ export function Login() {
       </div>
 
       {/* Form panel */}
-      <div className="flex-1 flex items-center justify-center px-6">
-        <div className="w-full max-w-[360px]">
+      <div className="flex-1 flex items-center justify-center px-5 py-8 sm:px-6">
+        <div className="w-full max-w-[360px] sm:max-w-[360px]">
 
           {/* Tab switcher */}
           <div className="flex gap-1 p-1 bg-gray-100 rounded-xl mb-8">
@@ -294,7 +294,7 @@ function Alert({ ok, text }) {
 function FullPage({ children }) {
   return (
     <div className="min-h-screen bg-white flex items-center justify-center px-6">
-      <div className="w-full max-w-[360px]">{children}</div>
+      <div className="w-full max-w-[360px] sm:max-w-[360px]">{children}</div>
     </div>
   )
 }
