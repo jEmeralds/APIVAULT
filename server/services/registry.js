@@ -84,7 +84,7 @@ export const registry = {
     return { ok: true }
   },
 
-  // Resolve a slug to full config including decrypted key
+  // Resolve a slug to full config with master key
   async resolve(slug) {
     const { data: api } = await db
       .from('api_registry')
@@ -94,8 +94,8 @@ export const registry = {
       .single()
     if (!api) return null
 
-    // Decrypt key from Vault
-    const { data: secret } = await db.rpc('vault.decrypted_secret', { id: api.master_key_ref })
-    return { ...api, masterKey: secret?.decrypted_secret || secret }
+    // master_key_ref stores the key directly
+    // (Supabase Vault can be added later for enhanced security)
+    return { ...api, masterKey: api.master_key_ref }
   }
 }

@@ -59,7 +59,17 @@ adminRoute.patch('/apis/:id', async (req, res) => {
 })
 
 adminRoute.post('/apis/:slug/rotate-key', async (req, res) => {
-  res.json(await registry.rotateKey(req.params.slug, req.body.key))
+  const { key } = req.body
+  if (!key) return res.status(400).json({ error: 'key required' })
+
+  // Store key directly as master_key_ref (plaintext for now)
+  // TODO: move to Supabase Vault when available
+  const { error } = await db.from('api_registry')
+    .update({ master_key_ref: key })
+    .eq('slug', req.params.slug)
+
+  if (error) return res.status(500).json({ error: error.message })
+  res.json({ ok: true })
 })
 
 // ─── Users ─────────────────────────────────────────────────────────────────

@@ -238,8 +238,19 @@ function APIs({ d, onRefresh }) {
   async function save() {
     setSaving(true)
     try {
-      if (modal === 'add') await api.addAPI(form)
-      else await api.editAPI(form.id, { cost_per_call: parseFloat(form.cost_per_call), markup: parseFloat(form.markup), status: form.status })
+      if (modal === 'add') {
+        await api.addAPI(form)
+      } else {
+        await api.editAPI(form.id, {
+          cost_per_call: parseFloat(form.cost_per_call),
+          markup:        parseFloat(form.markup),
+          status:        form.status,
+        })
+        // Rotate master key if a new one was provided
+        if (form.newMasterKey?.trim()) {
+          await api.rotateKey(form.slug, form.newMasterKey.trim())
+        }
+      }
       setModal(null); onRefresh()
     } catch (e) { alert(e.message) }
     setSaving(false)
@@ -287,16 +298,36 @@ function APIs({ d, onRefresh }) {
             </>
           ) : (
             <>
+              <div className="mb-3 p-3 bg-gray-50 rounded-lg">
+                <div className="text-xs text-gray-400 mb-1">Upstream URL</div>
+                <div className="font-mono text-xs text-gray-600 truncate">{form.upstream_url}</div>
+              </div>
               <div className="grid grid-cols-2 gap-3">
-                <Field label="Cost / call ($)"><Input type="number" value={form.cost_per_call} onChange={e => setForm(f => ({ ...f, cost_per_call: e.target.value }))} /></Field>
-                <Field label="Markup (%)"><Input type="number" value={form.markup} onChange={e => setForm(f => ({ ...f, markup: e.target.value }))} /></Field>
+                <Field label="Cost / call ($)">
+                  <Input type="number" value={form.cost_per_call}
+                    onChange={e => setForm(f => ({ ...f, cost_per_call: e.target.value }))} />
+                </Field>
+                <Field label="Markup (%)">
+                  <Input type="number" value={form.markup}
+                    onChange={e => setForm(f => ({ ...f, markup: e.target.value }))} />
+                </Field>
               </div>
               <Field label="Status">
                 <select value={form.status} onChange={e => setForm(f => ({ ...f, status: e.target.value }))}
-                  className="w-full px-3 py-2 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-gray-900 bg-white">
-                  <option>live</option><option>paused</option>
+                  className="w-full px-3 py-2 text-sm border border-gray-200 rounded-lg
+                    focus:outline-none focus:ring-2 focus:ring-gray-900 bg-white">
+                  <option value="live">live</option>
+                  <option value="paused">paused</option>
                 </select>
               </Field>
+              <Field label="New master API key">
+                <Input type="password" placeholder="Paste new key to rotate (leave blank to keep current)"
+                  value={form.newMasterKey || ''}
+                  onChange={e => setForm(f => ({ ...f, newMasterKey: e.target.value }))} />
+              </Field>
+              <p className="text-xs text-gray-300 -mt-2 mb-2">
+                Current key ref: <span className="font-mono">{form.master_key_ref}</span>
+              </p>
             </>
           )}
           <ModalActions onClose={() => setModal(null)} onSave={save} saving={saving} />
