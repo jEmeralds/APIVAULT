@@ -60,51 +60,115 @@ function BarChart({ data, valueKey, labelKey, color = 'bg-indigo-500', formatVal
 
 // ─── Marketplace card ─────────────────────────────────────────────────────
 
-function APICard({ api: a, onRequest, requesting }) {
+function APICard({ api: a, onRequest, requesting, expanded, onExpand, onTry, trying, tryResult }) {
   const statusColor = {
     pending:  'text-amber-600 bg-amber-50 border-amber-100',
     approved: 'text-green-600 bg-green-50 border-green-100',
   }
+  const isExpanded = expanded === a.slug
+  const result = tryResult?.[a.slug]
+
+  const testPaths = {
+    openweather: '/weather?q=Nairobi',
+    newsapi:     '/top-headlines?country=us&pageSize=2',
+    github:      '/users/octocat',
+  }
 
   return (
-    <div className={`bg-white border rounded-xl p-4 transition-all
-      ${a.has_access ? 'border-gray-100' : 'border-gray-100 opacity-80'}`}>
+    <div className={`bg-white border rounded-xl transition-all
+      ${isExpanded ? 'border-gray-900 shadow-sm' : a.has_access ? 'border-gray-100' : 'border-gray-100 opacity-80'}`}>
 
-      <div className="flex items-start justify-between mb-2">
-        <div>
-          <div className="font-medium text-sm text-gray-900">{a.name}</div>
-          <div className="font-mono text-xs text-gray-300 mt-0.5">/proxy/{a.slug}</div>
+      <div className="p-4">
+        <div className="flex items-start justify-between mb-2">
+          <div className="flex-1 mr-2">
+            <div className="font-medium text-sm text-gray-900">{a.name}</div>
+            {a.description && (
+              <div className="text-xs text-gray-400 mt-0.5 leading-relaxed">{a.description}</div>
+            )}
+            <div className="font-mono text-xs text-gray-300 mt-1">/proxy/{a.slug}</div>
+          </div>
+          <Badge cat={a.category} />
         </div>
-        <Badge cat={a.category} />
-      </div>
 
-      <div className="flex items-center justify-between mt-3">
-        <div>
-          <div className="text-xs text-gray-400">Your price</div>
-          <div className="font-mono text-sm font-medium text-gray-900">
-            {a.user_price > 0 ? `$${a.user_price.toFixed(4)}` : 'Free'}
-            <span className="text-xs text-gray-400 font-normal ml-1">/ {a.billing_unit || 'request'}</span>
+        <div className="flex items-center justify-between mt-3">
+          <div>
+            <div className="text-xs text-gray-400">Your price</div>
+            <div className="font-mono text-sm font-medium text-gray-900">
+              {a.user_price > 0 ? `$${a.user_price.toFixed(4)}` : 'Free'}
+              <span className="text-xs text-gray-400 font-normal ml-1">/ {a.billing_unit || 'request'}</span>
+            </div>
+          </div>
+
+          <div className="flex items-center gap-2">
+            {a.has_access ? (
+              <button onClick={() => onExpand(a.slug)}
+                className={`px-2.5 py-1 border text-xs rounded-lg font-medium transition-all
+                  ${isExpanded ? 'border-gray-900 bg-gray-900 text-white' : 'bg-green-50 text-green-700 border-green-100 hover:border-gray-900 hover:bg-gray-900 hover:text-white'}`}>
+                {isExpanded ? 'Close' : 'Use API'}
+              </button>
+            ) : a.request_status ? (
+              <span className={`px-2.5 py-1 border text-xs rounded-lg font-medium ${statusColor[a.request_status] || 'text-gray-500 bg-gray-50 border-gray-100'}`}>
+                {a.request_status === 'pending' ? 'Requested' : 'Approved'}
+              </span>
+            ) : (
+              <button onClick={() => onRequest(a.slug)} disabled={requesting === a.slug}
+                className="px-2.5 py-1 border border-gray-200 text-xs rounded-lg text-gray-600
+                  hover:border-gray-900 hover:text-gray-900 transition-all disabled:opacity-50">
+                {requesting === a.slug ? 'Requesting...' : 'Request access'}
+              </button>
+            )}
           </div>
         </div>
-
-        {a.has_access ? (
-          <span className="px-2.5 py-1 bg-green-50 text-green-700 border border-green-100 text-xs rounded-lg font-medium">
-            Active
-          </span>
-        ) : a.request_status ? (
-          <span className={`px-2.5 py-1 border text-xs rounded-lg font-medium ${statusColor[a.request_status] || 'text-gray-500 bg-gray-50 border-gray-100'}`}>
-            {a.request_status === 'pending' ? 'Requested' : 'Approved'}
-          </span>
-        ) : (
-          <button
-            onClick={() => onRequest(a.slug)}
-            disabled={requesting === a.slug}
-            className="px-2.5 py-1 border border-gray-200 text-xs rounded-lg text-gray-600
-              hover:border-gray-900 hover:text-gray-900 transition-all disabled:opacity-50">
-            {requesting === a.slug ? 'Requesting...' : 'Request access'}
-          </button>
-        )}
       </div>
+
+      {/* Expanded — code snippet + try it */}
+      {isExpanded && (
+        <div className="border-t border-gray-100 p-4">
+          <div className="text-xs font-medium text-gray-500 mb-2">Quick start</div>
+
+          {/* Code snippet */}
+          <div className="bg-gray-950 rounded-xl p-3.5 mb-3 overflow-x-auto">
+            <div className="font-mono text-xs leading-relaxed">
+              <div className="text-gray-500 mb-2">// JavaScript / Node.js</div>
+              <div className="text-gray-100">
+                <span className="text-blue-400">const</span> res = <span className="text-blue-400">await</span>{' '}
+                <span className="text-yellow-300">fetch</span>(<span className="text-green-300">{`\`\${API_BASE}/proxy/${a.slug}${testPaths[a.slug] || ''}\``}</span>, {'{'}
+              </div>
+              <div className="text-gray-100 ml-4">
+                headers: {'{ '}<span className="text-green-300">'x-vault-key'</span>:{' '}
+                <span className="text-amber-300">'YOUR_VAULT_KEY'</span> {' }'}
+              </div>
+              <div className="text-gray-100">{'})'};</div>
+              <div className="text-gray-100 mt-1">
+                <span className="text-blue-400">const</span> data = <span className="text-blue-400">await</span> res.<span className="text-yellow-300">json</span>();
+              </div>
+            </div>
+          </div>
+
+          {/* Try it button */}
+          <div className="flex items-center gap-2 mb-3">
+            <button onClick={() => onTry(a)} disabled={trying === a.slug}
+              className="px-3.5 py-2 bg-indigo-600 text-white text-xs rounded-lg
+                hover:bg-indigo-700 disabled:opacity-50 transition-colors font-medium">
+              {trying === a.slug ? 'Running...' : '▶ Try it live'}
+            </button>
+            <span className="text-xs text-gray-400">Makes a real call using your credits</span>
+          </div>
+
+          {/* Result */}
+          {result && !result.loading && (
+            <div className={`rounded-xl p-3 border text-xs font-mono overflow-x-auto
+              ${result.ok ? 'bg-green-50 border-green-100' : 'bg-red-50 border-red-100'}`}>
+              <div className={`mb-1 font-medium ${result.ok ? 'text-green-700' : 'text-red-600'}`}>
+                {result.ok ? `✓ ${result.status} OK` : `✗ ${result.status || 'Error'}`}
+              </div>
+              <pre className="text-gray-600 whitespace-pre-wrap text-xs overflow-x-auto max-h-48">
+                {JSON.stringify(result.data || result.error, null, 2)}
+              </pre>
+            </div>
+          )}
+        </div>
+      )}
     </div>
   )
 }
@@ -121,6 +185,9 @@ export function Dashboard() {
   const [notice, setNotice]     = useState(null)
   const [requesting, setReq]    = useState(null)
   const [catFilter, setCatFilter] = useState('all')
+  const [expanded, setExpanded] = useState(null)
+  const [tryResult, setTryResult] = useState({})
+  const [trying, setTrying]     = useState(null)
   const nav = useNavigate()
 
   useEffect(() => {
@@ -141,6 +208,34 @@ export function Dashboard() {
         .catch(() => setNotice({ ok: false, msg: 'Verification failed.' }))
     }
   }, [])
+
+  async function tryAPI(a) {
+    if (!a.has_access) return
+    setTrying(a.slug)
+    setTryResult(r => ({ ...r, [a.slug]: { loading: true } }))
+    try {
+      const BASE_URL = import.meta.env.VITE_API_URL || ''
+      const { key: vaultKey } = await api.revealKey()
+      const uuid = vaultKey.replace('sk-vault-', '')
+
+      // Build a sensible test URL for each API
+      const testPaths = {
+        openweather: '/weather?q=Nairobi',
+        newsapi:     '/top-headlines?country=us&pageSize=2',
+        github:      '/users/octocat',
+        default:     '/',
+      }
+      const path = testPaths[a.slug] || testPaths.default
+      const res = await fetch(`${BASE_URL}/proxy/${a.slug}${path}`, {
+        headers: { 'x-vault-key': uuid }
+      })
+      const data = await res.json()
+      setTryResult(r => ({ ...r, [a.slug]: { ok: res.ok, status: res.status, data } }))
+    } catch (e) {
+      setTryResult(r => ({ ...r, [a.slug]: { ok: false, error: e.message } }))
+    }
+    setTrying(null)
+  }
 
   async function requestAPI(slug) {
     setReq(slug)
@@ -276,7 +371,11 @@ export function Dashboard() {
             ) : (
               <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
                 {filtered.map(a => (
-                  <APICard key={a.slug} api={a} onRequest={requestAPI} requesting={requesting} />
+                  <APICard key={a.slug} api={a}
+                    onRequest={requestAPI} requesting={requesting}
+                    expanded={expanded} onExpand={s => setExpanded(expanded === s ? null : s)}
+                    onTry={tryAPI} trying={trying} tryResult={tryResult}
+                  />
                 ))}
               </div>
             )}
