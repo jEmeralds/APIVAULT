@@ -245,6 +245,7 @@ function APIs({ d, onRefresh }) {
           cost_per_call: parseFloat(form.cost_per_call),
           markup:        parseFloat(form.markup),
           status:        form.status,
+          description:   form.description,
         })
         // Rotate master key if a new one was provided
         if (form.newMasterKey?.trim()) {
@@ -319,6 +320,11 @@ function APIs({ d, onRefresh }) {
                   <option value="live">live</option>
                   <option value="paused">paused</option>
                 </select>
+              </Field>
+              <Field label="Description">
+                <Input placeholder="One line description of what this API does"
+                  value={form.description || ''}
+                  onChange={e => setForm(f => ({ ...f, description: e.target.value }))} />
               </Field>
               <Field label="New master API key">
                 <Input type="password" placeholder="Paste new key to rotate (leave blank to keep current)"

@@ -68,7 +68,7 @@ userRoute.get('/apis', async (req, res) => {
   const categories = access?.categories || ['ai', 'dev']
 
   const { data } = await db.from('api_registry')
-    .select('slug, name, category, cost_per_call, markup, billing_unit, status')
+    .select('slug, name, category, cost_per_call, markup, billing_unit, status, description')
     .in('category', categories)
     .eq('status', 'live')
     .order('category')
@@ -83,7 +83,7 @@ userRoute.get('/marketplace', async (req, res) => {
 
   // Get all live + paused APIs
   const { data: apis } = await db.from('api_registry')
-    .select('slug, name, category, cost_per_call, markup, billing_unit, status')
+    .select('slug, name, category, cost_per_call, markup, billing_unit, status, description')
     .in('status', ['live', 'paused'])
     .order('category')
 
@@ -150,4 +150,27 @@ userRoute.get('/key', async (req, res) => {
 userRoute.post('/key/reveal', async (req, res) => {
   const { data } = await db.from('users').select('vault_key').eq('id', req.user.id).single()
   res.json({ key: `sk-vault-${data.vault_key}` })
+})
+
+// POST /user/change-password
+userRoute.post('/change-password', async (req, res) => {
+  const { current_password, new_password } = req.body
+  if (!current_password || !new_password) return res.status(400).json({ error: 'Both passwords required' })
+  if (new_password.length < 8) return res.status(400).json({ error: 'Password must be at least 8 characters' })
+
+  const { data: user } = await db.from('users')
+    .select('password_hash, password_salt')
+    .eq('id', req.user.id).single()
+
+  const { createHmac, randomBytes } = await import('crypto')
+  const currentHash = createHmac('sha256', user.password_salt).update(current_password).digest('hex')
+  if (currentHash !== user.password_hash) {
+    return res.status(401).json({ error: 'Current password is incorrect' })
+  }
+
+  const newSalt = randomBytes(32).toString('hex')
+  const newHash = createHmac('sha256', newSalt).update(new_password).digest('hex')
+
+  await db.from('users').update({ password_hash: newHash, password_salt: newSalt }).eq('id', req.user.id)
+  res.json({ ok: true })
 })

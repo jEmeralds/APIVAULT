@@ -51,7 +51,7 @@ adminRoute.post('/apis', async (req, res) => {
 })
 
 adminRoute.patch('/apis/:id', async (req, res) => {
-  const allowed = ['name', 'cost_per_call', 'markup', 'status', 'pool_id', 'category']
+  const allowed = ['name', 'cost_per_call', 'markup', 'status', 'pool_id', 'category', 'description']
   const update  = Object.fromEntries(Object.entries(req.body).filter(([k]) => allowed.includes(k)))
   const { data, error } = await db.from('api_registry').update(update).eq('id', req.params.id).select().single()
   if (error) return res.status(400).json({ error: error.message })
