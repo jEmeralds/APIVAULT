@@ -349,13 +349,14 @@ function Users({ d, onRefresh }) {
   const active   = d.filter(u => u.status === 'active')
   const inactive = d.filter(u => u.status === 'suspended')
 
-  async function approve(u) {
+  async function approve(u, credits = 0) {
     setSaving(true)
     try {
       const token = localStorage.getItem('token')
       await fetch(`${BASE}/auth/approve/${u.id}`, {
         method: 'POST',
-        headers: { 'Authorization': `Bearer ${token}` }
+        headers: { 'Authorization': `Bearer ${token}`, 'Content-Type': 'application/json' },
+        body: JSON.stringify({ starting_credits: parseFloat(credits) || 0 })
       })
       onRefresh()
     } catch (e) { alert(e.message) }
@@ -371,7 +372,9 @@ function Users({ d, onRefresh }) {
   async function saveModal() {
     setSaving(true)
     try {
-      if (modal === 'add') {
+      if (modal === 'approve') {
+        await approve(form, form.starting_credits)
+      } else if (modal === 'add') {
         await api.addUser(form)
       } else if (modal === 'edit') {
         if (form.credit_adj) await api.adjCreds(form.id, parseFloat(form.credit_adj), 'admin')
@@ -424,8 +427,8 @@ function Users({ d, onRefresh }) {
                     <td className="px-4 py-3 text-xs text-gray-400">{new Date(u.created_at).toLocaleDateString()}</td>
                     <td className="px-4 py-3">
                       <div className="flex gap-2">
-                        <button onClick={() => approve(u)} disabled={saving}
-                          className="px-3 py-1.5 bg-green-600 text-white text-xs rounded-lg hover:bg-green-700 transition-colors font-medium disabled:opacity-50">
+                        <button onClick={() => { setForm({ ...u, starting_credits: '5' }); setModal('approve') }}
+                          className="px-3 py-1.5 bg-green-600 text-white text-xs rounded-lg hover:bg-green-700 transition-colors font-medium">
                           Approve
                         </button>
                         <button onClick={() => reject(u)}
@@ -474,11 +477,28 @@ function Users({ d, onRefresh }) {
       {modal && (
         <Modal
           title={
+            modal === 'approve' ? `Approve — ${form.email}` :
             modal === 'add'    ? 'Add user' :
             modal === 'edit'   ? `Edit — ${form.email}` :
             modal === 'toggle' ? (form.status === 'active' ? `Suspend ${form.email}?` : `Reinstate ${form.email}?`) : ''
           }
           onClose={() => setModal(null)}>
+          {modal === 'approve' && (
+            <>
+              <div className="mb-4 p-3 bg-green-50 border border-green-100 rounded-lg">
+                <div className="text-xs text-gray-500 mb-1">Plan requested</div>
+                <div className="font-medium text-gray-900 capitalize">{form.plan}</div>
+              </div>
+              <Field label="Starting credits ($)">
+                <Input type="number" value={form.starting_credits}
+                  onChange={e => setForm(f => ({ ...f, starting_credits: e.target.value }))}
+                  placeholder="e.g. 5" />
+              </Field>
+              <p className="text-xs text-gray-400 -mt-2 mb-2">
+                User will receive this amount to start making API calls immediately after approval.
+              </p>
+            </>
+          )}
           {modal === 'add' && (
             <>
               <Field label="Email"><Input type="email" placeholder="user@example.com" onChange={e => setForm(f => ({ ...f, email: e.target.value }))} /></Field>
@@ -519,8 +539,14 @@ function Users({ d, onRefresh }) {
             onClose={() => setModal(null)}
             onSave={saveModal}
             saving={saving}
-            saveLabel={modal === 'toggle' && form.status === 'active' ? 'Suspend' : 'Save'}
-            saveColor={modal === 'toggle' && form.status === 'active' ? 'bg-red-600 text-white hover:bg-red-700' : undefined}
+            saveLabel={
+              modal === 'approve' ? 'Approve & notify' :
+              modal === 'toggle' && form.status === 'active' ? 'Suspend' : 'Save'
+            }
+            saveColor={
+              modal === 'approve' ? 'bg-green-600 text-white hover:bg-green-700' :
+              modal === 'toggle' && form.status === 'active' ? 'bg-red-600 text-white hover:bg-red-700' : undefined
+            }
           />
         </Modal>
       )}

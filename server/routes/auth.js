@@ -119,7 +119,7 @@ async function sendEmail({ to, subject, html }) {
   console.log(`[EMAIL] Key present: ${!!RESEND_KEY} | Key starts: ${RESEND_KEY?.substring(0,8)}`)
 
   if (!RESEND_KEY) {
-    console.log(`[EMAIL] SKIPPED — RESEND_API_KEY not set`)
+    console.log(`[EMAIL] SKIPPED — EMAIL_KEY/RESEND_API_KEY not set. Keys available: ${Object.keys(process.env).filter(k=>k.includes('EMAIL')||k.includes('RESEND')||k.includes('KEY')).join(',')}`)
     return
   }
 
@@ -370,16 +370,31 @@ authRoute.post('/approve/:userId', async (req, res) => {
   const payload = verifyToken(header.slice(7))
   if (!payload || payload.role !== 'admin') return res.status(403).json({ error: 'Forbidden' })
 
+  const { starting_credits = 0 } = req.body
+
   const { data: user, error } = await db
     .from('users')
     .update({ status: 'active' })
     .eq('id', req.params.userId)
-    .select('email, plan')
+    .select('email, plan, credits')
     .single()
 
   if (error || !user) return res.status(404).json({ error: 'User not found' })
 
+  // Add starting credits if specified
+  if (starting_credits > 0) {
+    await db.rpc('add_credits', {
+      p_user_id: req.params.userId,
+      p_amount:  parseFloat(starting_credits),
+      p_reason:  'admin_approval_bonus'
+    })
+  }
+
   // Notify user they are approved
+  const creditsMsg = starting_credits > 0
+    ? `<p style="color:#16a34a;font-weight:500;margin-bottom:16px">$${parseFloat(starting_credits).toFixed(2)} starting credits have been added to your account.</p>`
+    : ''
+
   await sendEmail({
     to:      user.email,
     subject: 'Your APIvault account is approved',
@@ -390,7 +405,8 @@ authRoute.post('/approve/:userId', async (req, res) => {
           <strong>APIvault</strong>
         </div>
         <h2 style="font-size:20px;font-weight:600;margin-bottom:8px">You are approved!</h2>
-        <p style="color:#666;margin-bottom:24px">Your APIvault account has been approved. You can now sign in and start using the platform.</p>
+        <p style="color:#666;margin-bottom:16px">Your APIvault account has been approved. You can now sign in and start using the platform.</p>
+        ${creditsMsg}
         <a href="${APP_URL}" style="display:inline-block;background:#111;color:#fff;text-decoration:none;padding:12px 24px;border-radius:8px;font-size:14px;font-weight:500">
           Sign in to APIvault
         </a>
