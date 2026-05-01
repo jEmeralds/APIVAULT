@@ -138,36 +138,43 @@ function Notice({ msg, ok, onClose }) {
 
 // ─── Marketplace ──────────────────────────────────────────────────────────
 
-function buildSnippet(slug, path, method = 'GET', body = null, lang = 'js') {
-  const url = `\${BASE_URL}/proxy/${slug}${path}`
-  if (lang === 'js') return `const BASE_URL = 'https://apivault-production-736c.up.railway.app';
+function buildSnippet(slug, path, method = 'GET', body = null, lang = 'js', vaultKey = null) {
+  const API_BASE = 'https://apivault-production-736c.up.railway.app'
+  const key = vaultKey || 'YOUR_VAULT_KEY'
 
-const res = await fetch(\`${url}\`, {
-  method: '${method}',
-  headers: {
-    'x-vault-key': 'YOUR_VAULT_KEY',
-    'Content-Type': 'application/json',
-  },${body ? `\n  body: JSON.stringify(${JSON.stringify(body, null, 4)}),` : ''}
-});
-const data = await res.json();
-console.log(data);`
+  if (lang === 'js') return [
+    `const res = await fetch('${API_BASE}/proxy/${slug}${path}', {`,
+    `  method: '${method}',`,
+    `  headers: {`,
+    `    'x-vault-key': '${key}',`,
+    `    'Content-Type': 'application/json',`,
+    `  },`,
+    body ? `  body: JSON.stringify(${JSON.stringify(body, null, 2)}),` : null,
+    `});`,
+    `const data = await res.json();`,
+    `console.log(data);`,
+  ].filter(Boolean).join('\n')
 
-  if (lang === 'python') return `import requests
+  if (lang === 'python') return [
+    `import requests`,
+    ``,
+    `res = requests.${method.toLowerCase()}(`,
+    `    '${API_BASE}/proxy/${slug}${path}',`,
+    `    headers={`,
+    `        'x-vault-key': '${key}',`,
+    `        'Content-Type': 'application/json',`,
+    `    },`,
+    body ? `    json=${JSON.stringify(body)},` : null,
+    `)`,
+    `print(res.json())`,
+  ].filter(l => l !== null).join('\n')
 
-BASE_URL = 'https://apivault-production-736c.up.railway.app'
-
-res = requests.${method.toLowerCase()}(
-    f"{BASE_URL}/proxy/${slug}${path}",
-    headers={
-        "x-vault-key": "YOUR_VAULT_KEY",
-        "Content-Type": "application/json",
-    },${body ? `\n    json=${JSON.stringify(body)},` : ''}
-)
-print(res.json())`
-
-  return `curl "${BASE || 'https://apivault-production-736c.up.railway.app'}/proxy/${slug}${path}" \\
-  -X ${method} \\
-  -H "x-vault-key: YOUR_VAULT_KEY"${body ? ` \\\n  -H "Content-Type: application/json" \\\n  -d '${JSON.stringify(body)}'` : ''}`
+  return [
+    `curl '${API_BASE}/proxy/${slug}${path}' \\`,
+    `  -X ${method} \\`,
+    `  -H 'x-vault-key: ${key}'`,
+    body ? `  -H 'Content-Type: application/json' \\\n  -d '${JSON.stringify(body)}'` : null,
+  ].filter(Boolean).join('\n')
 }
 
 function APICard({ a, onRequest, requesting, expanded, onExpand, vaultKey }) {
