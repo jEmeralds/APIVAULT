@@ -257,3 +257,43 @@ adminRoute.get('/billing/charts', async (req, res) => {
     top_apis:     topApis.data || [],
   })
 })
+
+// ─── Manual payment verification ─────────────────────────────────────────
+
+adminRoute.post('/verify-payment', async (req, res) => {
+  const { reference } = req.body
+  if (!reference) return res.status(400).json({ error: 'reference required' })
+
+  // Verify with Paystack
+  const response = await fetch(
+    `https://api.paystack.co/transaction/verify/${encodeURIComponent(reference)}`,
+    { headers: { 'Authorization': `Bearer ${process.env.PAYSTACK_SECRET_KEY}` } }
+  )
+  const data = await response.json()
+
+  if (!data.status || data.data?.status !== 'success') {
+    return res.status(402).json({ error: 'Payment not confirmed on Paystack', status: data.data?.status })
+  }
+
+  const userId    = data.data.metadata?.user_id
+  const usdAmount = parseInt(data.data.metadata?.usd_amount)
+
+  if (!userId || !usdAmount) {
+    return res.status(400).json({
+      error: 'Missing metadata',
+      metadata: data.data.metadata,
+      hint: 'This payment may have been made before metadata was added'
+    })
+  }
+
+  const { billing } = await import('../services/billing.js')
+  const result = await billing.purchase(userId, usdAmount, reference)
+
+  if (result.duplicate) {
+    return res.json({ ok: false, msg: 'Already processed', reference })
+  }
+
+  // Get user email for confirmation
+  const { data: user } = await db.from('users').select('email').eq('id', userId).single()
+  res.json({ ok: true, credited: usdAmount, user: user?.email, reference })
+})

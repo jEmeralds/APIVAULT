@@ -632,6 +632,27 @@ function Pools({ d, onRefresh }) {
 // ─── Billing ──────────────────────────────────────────────────────────────
 
 function Billing({ d }) {
+  const [ref, setRef]       = useState('')
+  const [verifying, setVerifying] = useState(false)
+  const [verifyResult, setVerifyResult] = useState(null)
+
+  async function verifyPayment() {
+    if (!ref.trim()) return
+    setVerifying(true); setVerifyResult(null)
+    try {
+      const token = localStorage.getItem('token')
+      const res = await fetch(`${import.meta.env.VITE_API_URL || ''}/admin/verify-payment`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
+        body: JSON.stringify({ reference: ref.trim() })
+      })
+      const data = await res.json()
+      setVerifyResult({ ok: res.ok && data.ok, data })
+      if (res.ok && data.ok) setRef('')
+    } catch (e) { setVerifyResult({ ok: false, data: { error: e.message } }) }
+    setVerifying(false)
+  }
+
   if (!d) return <Loader />
   return (
     <div>
@@ -694,9 +715,42 @@ function Billing({ d }) {
         </div>
       )}
 
-      <div className="bg-white border border-gray-100 rounded-xl p-4">
+      <div className="bg-white border border-gray-100 rounded-xl p-4 mb-4">
         <div className="text-xs text-gray-400 mb-1">Total calls this month</div>
         <div className="text-3xl font-semibold tracking-tight">{d.call_count?.toLocaleString()}</div>
+      </div>
+
+      {/* Payment recovery */}
+      <div className="bg-white border border-amber-100 rounded-xl p-4">
+        <div className="text-xs font-semibold text-amber-600 mb-1">Payment recovery</div>
+        <div className="text-xs text-gray-400 mb-3">
+          If a user paid but credits weren't added, paste their Paystack reference here to manually verify and credit them.
+        </div>
+        <div className="flex gap-2">
+          <input
+            value={ref} onChange={e => setRef(e.target.value)}
+            placeholder="vault_xxxxxxxx-xxxx-xxxx..."
+            className="flex-1 px-3 py-2 text-xs border border-gray-200 rounded-lg
+              focus:outline-none focus:ring-2 focus:ring-gray-900 font-mono placeholder:text-gray-300"
+          />
+          <button onClick={verifyPayment} disabled={verifying || !ref.trim()}
+            className="px-4 py-2 bg-amber-500 text-white text-xs rounded-lg font-medium
+              hover:bg-amber-600 disabled:opacity-40 transition-colors whitespace-nowrap">
+            {verifying ? 'Verifying...' : 'Verify & credit'}
+          </button>
+        </div>
+        {verifyResult && (
+          <div className={`mt-3 p-3 rounded-lg text-xs border ${
+            verifyResult.ok
+              ? 'bg-green-50 border-green-100 text-green-700'
+              : 'bg-red-50 border-red-100 text-red-600'
+          }`}>
+            {verifyResult.ok
+              ? `✓ Credited $${verifyResult.data.credited} to ${verifyResult.data.user}`
+              : `✗ ${verifyResult.data.error || verifyResult.data.msg}`
+            }
+          </div>
+        )}
       </div>
     </div>
   )

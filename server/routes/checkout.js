@@ -69,7 +69,8 @@ checkoutRoute.post('/', auth, async (req, res) => {
 })
 
 // GET /checkout/verify?reference=xxx — verify payment and credit user
-checkoutRoute.get('/verify', auth, async (req, res) => {
+// No auth required — reference contains user_id in Paystack metadata
+checkoutRoute.get('/verify', async (req, res) => {
   const { reference } = req.query
   if (!reference) return res.status(400).json({ error: 'reference required' })
 
@@ -79,18 +80,25 @@ checkoutRoute.get('/verify', auth, async (req, res) => {
   )
   const data = await response.json()
 
-  if (!data.status || data.data.status !== 'success') {
+  console.log(`[CHECKOUT] Verify ${reference}: status=${data.data?.status} amount=${data.data?.amount}`)
+
+  if (!data.status || data.data?.status !== 'success') {
+    console.error(`[CHECKOUT] Payment not confirmed: ${JSON.stringify(data.data?.status)}`)
     return res.status(402).json({ error: 'Payment not confirmed', paystackStatus: data.data?.status })
   }
 
   const userId    = data.data.metadata?.user_id
   const usdAmount = parseInt(data.data.metadata?.usd_amount)
 
+  console.log(`[CHECKOUT] Crediting user ${userId} with $${usdAmount}`)
+
   if (!userId || !usdAmount) {
+    console.error(`[CHECKOUT] Invalid metadata: ${JSON.stringify(data.data.metadata)}`)
     return res.status(400).json({ error: 'Invalid payment metadata' })
   }
 
   // purchase() is idempotent — safe to call more than once
   const result = await billing.purchase(userId, usdAmount, reference)
+  console.log(`[CHECKOUT] Purchase result: ${JSON.stringify(result)}`)
   res.json(result)
 })
