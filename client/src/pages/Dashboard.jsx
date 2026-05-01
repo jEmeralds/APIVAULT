@@ -55,6 +55,48 @@ const API_DOCS = {
     ],
     tryPath: null,
   },
+  restcountries: {
+    endpoints: [
+      { method: 'GET', path: '/name/:country', desc: 'Search country by name',
+        params: [{ name: ':country', desc: 'Country name', example: 'kenya' }] },
+      { method: 'GET', path: '/alpha/:code', desc: 'Get country by ISO code',
+        params: [{ name: ':code', desc: '2 or 3 letter ISO code', example: 'KE' }] },
+      { method: 'GET', path: '/region/:region', desc: 'Get all countries in a region',
+        params: [{ name: ':region', desc: 'africa|europe|asia|americas|oceania', example: 'africa' }] },
+    ],
+    tryPath: '/name/kenya',
+  },
+  ipgeo: {
+    endpoints: [
+      { method: 'GET', path: '/:ip/json', desc: 'Get location info for an IP address',
+        params: [{ name: ':ip', desc: 'IPv4 or IPv6 address', example: '8.8.8.8' }] },
+    ],
+    tryPath: '/8.8.8.8/json',
+  },
+  exchangerates: {
+    endpoints: [
+      { method: 'GET', path: '/latest/:base', desc: 'Get latest exchange rates',
+        params: [{ name: ':base', desc: 'Base currency code', example: 'USD' }] },
+      { method: 'GET', path: '/history/:base', desc: 'Get historical rates',
+        params: [{ name: ':base', desc: 'Base currency code', example: 'KES' }] },
+    ],
+    tryPath: '/latest/USD',
+  },
+  jokeapi: {
+    endpoints: [
+      { method: 'GET', path: '/joke/Any', desc: 'Get a random joke',
+        params: [{ name: 'type', desc: 'single | twopart', example: 'single' }, { name: 'amount', desc: 'Number of jokes', example: '1' }] },
+      { method: 'GET', path: '/joke/Programming', desc: 'Get a programming joke', params: [] },
+    ],
+    tryPath: '/joke/Programming?type=single',
+  },
+  dictionary: {
+    endpoints: [
+      { method: 'GET', path: '/entries/en/:word', desc: 'Get definition of an English word',
+        params: [{ name: ':word', desc: 'Word to look up', example: 'entrepreneur' }] },
+    ],
+    tryPath: '/entries/en/hello',
+  },
   default: {
     endpoints: [{ method: 'GET', path: '/', desc: 'Forward requests to the upstream API', params: [] }],
     tryPath: '/',
@@ -206,11 +248,14 @@ function APICard({ a, onRequest, requesting, expanded, onExpand, vaultKey }) {
                   </button>
                 ))}
               </div>
-              <CopyBtn text={buildSnippet(a.slug, tryPath || '/', 'GET', null, lang)} />
+              <div className="flex items-center gap-2">
+                {vaultKey && <span className="text-xs text-green-400">✓ Key loaded</span>}
+                <CopyBtn text={buildSnippet(a.slug, tryPath || '/', 'GET', null, lang, vaultKey)} />
+              </div>
             </div>
             <div className="bg-gray-950 rounded-xl p-4 overflow-x-auto">
               <pre className="text-xs text-gray-300 font-mono leading-relaxed whitespace-pre">
-                {buildSnippet(a.slug, tryPath || '/', 'GET', null, lang)}
+                {buildSnippet(a.slug, tryPath || '/', 'GET', null, lang, vaultKey)}
               </pre>
             </div>
           </div>
@@ -224,7 +269,9 @@ function APICard({ a, onRequest, requesting, expanded, onExpand, vaultKey }) {
                     disabled:opacity-50 transition-colors font-medium flex items-center gap-2">
                   {trying ? <><Spinner size={3} /><span>Running...</span></> : '▶ Run live'}
                 </button>
-                <span className="text-xs text-gray-400">Real API call · Uses your credits</span>
+                <span className="text-xs text-gray-400">
+                {vaultKey ? 'Key loaded · Uses your credits' : 'Go to Billing to reveal your key first'}
+              </span>
               </div>
 
               {result && (
@@ -499,7 +546,7 @@ function Billing({ me, setMe, vaultKey, setVaultKey }) {
 
 // ─── Docs ─────────────────────────────────────────────────────────────────
 
-function Docs({ marketplace }) {
+function Docs({ marketplace, vaultKey }) {
   const [sel, setSel]   = useState(null)
   const [lang, setLang] = useState('js')
   const live = marketplace.filter(a => a.status === 'live')
@@ -519,7 +566,7 @@ function Docs({ marketplace }) {
     const qs = ep.method === 'GET' && queryParams.length
       ? '?' + queryParams.map(p => `${p.name}=${p.example}`).join('&')
       : ''
-    return buildSnippet(a.slug, pathResolved + qs, ep.method, ep.method !== 'GET' ? {} : null, lang)
+    return buildSnippet(a.slug, pathResolved + qs, ep.method, ep.method !== 'GET' ? {} : null, lang, vaultKey)
   }
 
   return (
@@ -769,8 +816,11 @@ export function Dashboard() {
   const nav = useNavigate()
 
   useEffect(() => {
-    Promise.all([api.me(), api.marketplace(), api.usageStats(), api.usage()])
-      .then(([m, mkt, s, u]) => { setMe(m); setMkt(mkt); setStats(s); setUsage(u) })
+    Promise.all([api.me(), api.marketplace(), api.usageStats(), api.usage(), api.revealKey()])
+      .then(([m, mkt, s, u, k]) => {
+        setMe(m); setMkt(mkt); setStats(s); setUsage(u)
+        if (k?.key) setVaultKey(k.key)
+      })
       .catch(() => { localStorage.clear(); nav('/') })
   }, [])
 
@@ -817,7 +867,7 @@ export function Dashboard() {
         {tab === 'marketplace' && <Marketplace marketplace={marketplace} me={me} vaultKey={vaultKey} />}
         {tab === 'usage'       && <Usage stats={stats} usage={usage} />}
         {tab === 'billing'     && <Billing me={me} setMe={setMe} vaultKey={vaultKey} setVaultKey={setVaultKey} />}
-        {tab === 'docs'        && <Docs marketplace={marketplace} />}
+        {tab === 'docs'        && <Docs marketplace={marketplace} vaultKey={vaultKey} />}
         {tab === 'settings'    && <Settings me={me} />}
       </div>
     </div>
