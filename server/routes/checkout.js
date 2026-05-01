@@ -6,31 +6,40 @@
 // 4. Client calls GET /checkout/verify?reference=xxx → credits user
 
 import { Router } from 'express'
-import { auth }    from '../middleware/auth.js'
+import { jwtAuth as auth } from '../routes/auth.js'
 import { billing } from '../services/billing.js'
 import { db }      from '../db.js'
 
 export const checkoutRoute = Router()
 
 // USD credit packages
-const PACKAGES = [5, 10, 25, 50]
+const PACKAGES = [5, 10, 25, 50, 100, 200]
+const MIN_AMOUNT = 1
+const MAX_AMOUNT = 500
 
-// Exchange rate: 1 USD to KES (update periodically or fetch live rate)
-const USD_TO_KES = 130
+// Fetch live KES rate — fallback to 130 if unavailable
+async function getKESRate() {
+  try {
+    const res = await fetch('https://open.er-api.com/v6/latest/USD')
+    const data = await res.json()
+    return data.rates?.KES || 130
+  } catch { return 130 }
+}
 
 // POST /checkout — initialize Paystack transaction
 checkoutRoute.post('/', auth, async (req, res) => {
   const amount = parseInt(req.body.amount)
-  if (!PACKAGES.includes(amount)) {
-    return res.status(400).json({ error: `Invalid amount. Choose: ${PACKAGES.join(', ')}` })
+  if (!amount || amount < MIN_AMOUNT || amount > MAX_AMOUNT) {
+    return res.status(400).json({ error: `Invalid amount. Min $${MIN_AMOUNT}, max $${MAX_AMOUNT}` })
   }
 
   const { data: user } = await db
     .from('users').select('email').eq('id', req.user.id).single()
 
-  const origin    = req.headers.origin || 'http://localhost:5173'
+  const origin    = req.headers.origin || process.env.APP_URL || 'http://localhost:5173'
   const reference = `vault_${req.user.id}_${Date.now()}`
-  const amountKES = amount * USD_TO_KES
+  const kesRate   = await getKESRate()
+  const amountKES = Math.round(amount * kesRate)
 
   const response = await fetch('https://api.paystack.co/transaction/initialize', {
     method: 'POST',
