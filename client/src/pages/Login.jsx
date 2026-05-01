@@ -31,7 +31,7 @@ export function Login() {
       })
       .catch(() => { setStage('error'); setMsg({ ok: false, text: 'Verification failed. Try again.' }) })
 
-    window.history.replaceState({}, '', '/')
+    window.history.replaceState({}, '', '/login')
   }, [])
 
   function reset() { setEmail(''); setPassword(''); setConfirm(''); setMsg(null) }
