@@ -68,10 +68,11 @@ const API_DOCS = {
   },
   ipgeo: {
     endpoints: [
-      { method: 'GET', path: '/:ip/json', desc: 'Get location info for an IP address',
-        params: [{ name: ':ip', desc: 'IPv4 or IPv6 address', example: '8.8.8.8' }] },
+      { method: 'GET', path: '/json/:ip', desc: 'Get location info for an IP address',
+        params: [{ name: ':ip', desc: 'IPv4 address', example: '8.8.8.8' }] },
+      { method: 'GET', path: '/json', desc: 'Get location of the caller IP', params: [] },
     ],
-    tryPath: '/8.8.8.8/json',
+    tryPath: '/json/8.8.8.8',
   },
   exchangerates: {
     endpoints: [
