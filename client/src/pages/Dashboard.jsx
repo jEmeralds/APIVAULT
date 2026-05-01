@@ -125,6 +125,48 @@ function CopyBtn({ text, label = 'Copy' }) {
   )
 }
 
+function CustomAmount({ onBuy }) {
+  const [val, setVal]       = useState('')
+  const [loading, setLoading] = useState(false)
+  const [err, setErr]       = useState('')
+  const num = parseFloat(val)
+  const valid = !isNaN(num) && num >= 1 && num <= 500
+
+  async function buy() {
+    if (!valid) return
+    setLoading(true); setErr('')
+    try { await onBuy(Math.round(num)) }
+    catch (e) { setErr(e.message) }
+    setLoading(false)
+  }
+
+  return (
+    <div>
+      <div className="flex items-center gap-2">
+        <div className="relative flex-1">
+          <span className="absolute left-3 top-1/2 -translate-y-1/2 text-sm text-gray-400 font-medium">$</span>
+          <input
+            type="number" min="1" max="500" placeholder="Enter amount"
+            value={val} onChange={e => { setVal(e.target.value); setErr('') }}
+            onKeyDown={e => e.key === 'Enter' && buy()}
+            className="w-full pl-7 pr-3 py-2.5 text-sm border border-gray-200 rounded-lg
+              focus:outline-none focus:ring-2 focus:ring-gray-900 placeholder:text-gray-300"
+          />
+        </div>
+        <button onClick={buy} disabled={!valid || loading}
+          className="px-4 py-2.5 bg-gray-900 text-white text-sm rounded-lg font-medium
+            hover:bg-gray-800 disabled:opacity-40 transition-all whitespace-nowrap">
+          {loading ? '...' : 'Pay now'}
+        </button>
+      </div>
+      {err && <div className="text-xs text-red-500 mt-1.5">{err}</div>}
+      {val && !valid && num < 1 && <div className="text-xs text-gray-400 mt-1.5">Minimum amount is $1</div>}
+      {val && !valid && num > 500 && <div className="text-xs text-gray-400 mt-1.5">Maximum amount is $500</div>}
+      <div className="text-xs text-gray-300 mt-1.5">Min $1 · Max $500 · Charged in KES</div>
+    </div>
+  )
+}
+
 function Notice({ msg, ok, onClose }) {
   if (!msg) return null
   return (
@@ -510,6 +552,8 @@ function Billing({ me, setMe, vaultKey, setVaultKey }) {
       <div className="bg-white border border-gray-100 rounded-xl p-5 mb-4">
         <div className="text-sm font-semibold text-gray-900 mb-1">Add credits</div>
         <div className="text-xs text-gray-400 mb-4">Secure payment via Paystack · Credits never expire</div>
+
+        {/* Quick amounts */}
         <div className="grid grid-cols-3 gap-2 mb-3">
           {[5, 10, 25, 50, 100, 200].map(amt => (
             <button key={amt}
@@ -517,12 +561,21 @@ function Billing({ me, setMe, vaultKey, setVaultKey }) {
                 try { const { url } = await api.buyCredits(amt); window.location.href = url }
                 catch (e) { setNotice({ ok: false, msg: e.message }) }
               }}
-              className="py-3.5 border border-gray-200 rounded-xl text-center transition-all
+              className="py-3 border border-gray-200 rounded-xl text-center transition-all
                 hover:border-gray-900 hover:bg-gray-900 hover:text-white group">
               <div className="text-xs text-gray-400 group-hover:text-gray-300">Add</div>
               <div className="text-base font-bold text-gray-900 group-hover:text-white">${amt}</div>
             </button>
           ))}
+        </div>
+
+        {/* Custom amount */}
+        <div className="border-t border-gray-50 pt-3">
+          <div className="text-xs text-gray-400 mb-2">Or enter a custom amount</div>
+          <CustomAmount onBuy={async (amt) => {
+            try { const { url } = await api.buyCredits(amt); window.location.href = url }
+            catch (e) { setNotice({ ok: false, msg: e.message }) }
+          }} />
         </div>
       </div>
 
