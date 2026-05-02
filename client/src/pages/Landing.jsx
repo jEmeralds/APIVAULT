@@ -96,7 +96,7 @@ const DEMO_STEPS = [
   {
     id: 1,
     title: 'Create your account',
-    desc: 'Go to APIvault and sign up with your email. Admin approves your account — usually within minutes.',
+    desc: "Go to APIvault and sign up with your email. Admin approves your account — usually within minutes.",
     visual: 'signup',
     code: null,
     action: null,
@@ -104,7 +104,7 @@ const DEMO_STEPS = [
   {
     id: 2,
     title: 'Get your vault key',
-    desc: 'After approval, go to Billing → click "Reveal & copy". This single key works for every API.',
+    desc: "After approval, go to Billing → click Reveal & copy. This single key works for every API.",
     visual: 'key',
     code: `// Your vault key — one key for every API
 const VAULT_KEY = 'sk-vault-a27907ec-94cd-47f9-8b8f-458120a11154'
@@ -114,7 +114,7 @@ const BASE = 'https://apivault-production-736c.up.railway.app'`,
   {
     id: 3,
     title: 'Call your first API',
-    desc: 'Let's fetch live news headlines from Kenya. Click "Run" to make a real API call right now.',
+    desc: "Let's fetch live news headlines from Kenya. Click Run to make a real API call right now.",
     visual: 'call',
     code: `// Fetch Kenyan news headlines
 const res = await fetch(BASE + '/proxy/newsapi/top-headlines?country=ke&pageSize=3', {
@@ -134,7 +134,7 @@ console.log(articles)`,
   {
     id: 4,
     title: 'Add exchange rates',
-    desc: 'Same vault key, different API. Get live KES exchange rates — no new account needed.',
+    desc: "Same vault key, different API. Get live KES exchange rates — no new account needed.",
     visual: 'call',
     code: `// Same key — different API
 const res = await fetch(BASE + '/proxy/exchangerates/latest/KES', {
@@ -155,7 +155,7 @@ console.log('1 KES =', rates.USD, 'USD')`,
   {
     id: 5,
     title: 'Add country data',
-    desc: 'Third API. Still the same key. You're now calling 3 different APIs with one integration.',
+    desc: "Third API. Still the same key. You're now calling 3 different APIs with one integration.",
     visual: 'call',
     code: `// Third API — still the same key
 const res = await fetch(BASE + '/proxy/restcountries/name/kenya', {
@@ -179,7 +179,7 @@ console.log(kenya.name.common, kenya.population)`,
   {
     id: 6,
     title: 'You built a dashboard',
-    desc: 'Three APIs. One key. One billing account. That's APIvault — sign up to start building yours.',
+    desc: "Three APIs. One key. One billing account. That's APIvault — sign up to start building yours.",
     visual: 'done',
     code: `// Your complete Kenyan dashboard — 3 APIs, 1 key
 const VAULT_KEY = 'sk-vault-your-key-here'
