@@ -508,18 +508,7 @@ function Billing({ me, setMe, vaultKey, setVaultKey }) {
   const [notice, setNotice] = useState(null)
   const [revealed, setRevealed] = useState(false)
 
-  useEffect(() => {
-    const params = new URLSearchParams(window.location.search)
-    const ref = params.get('reference')
-    if (!ref) return
-    api.verifyPayment(ref)
-      .then(r => {
-        setNotice({ ok: r.ok, msg: r.ok ? `$${r.amount} credits added!` : 'Payment could not be verified.' })
-        window.history.replaceState({}, '', '/app')
-        api.me().then(m => setMe(m))
-      })
-      .catch(() => setNotice({ ok: false, msg: 'Verification failed.' }))
-  }, [])
+  // Payment verification handled at Dashboard level
 
   return (
     <div className="max-w-lg">
@@ -879,6 +868,21 @@ export function Dashboard() {
   const nav = useNavigate()
 
   useEffect(() => {
+    // Handle Paystack callback — verify payment immediately on any tab
+    const params = new URLSearchParams(window.location.search)
+    const ref = params.get('reference')
+    if (ref) {
+      window.history.replaceState({}, '', '/app')
+      api.verifyPayment(ref)
+        .then(r => {
+          if (r.ok) {
+            // Refresh user credits after successful payment
+            api.me().then(m => setMe(m))
+          }
+        })
+        .catch(() => {})
+    }
+
     Promise.all([api.me(), api.marketplace(), api.usageStats(), api.usage(), api.revealKey()])
       .then(([m, mkt, s, u, k]) => {
         setMe(m); setMkt(mkt); setStats(s); setUsage(u)
