@@ -911,12 +911,13 @@ export function Dashboard() {
     <div className="min-h-screen bg-[#fafafa]">
       <div className="border-b border-gray-100 bg-white sticky top-0 z-20">
         <div className="flex items-center px-4 h-14 gap-2 max-w-6xl mx-auto">
-          <div className="flex items-center gap-2 flex-shrink-0">
+          <button onClick={() => nav('/')}
+            className="flex items-center gap-2 flex-shrink-0 hover:opacity-70 transition-opacity">
             <div className="w-5 h-5 rounded bg-gray-900 flex items-center justify-center">
               <div className="w-1.5 h-1.5 rounded-full bg-white" />
             </div>
             <span className="font-semibold text-sm tracking-tight">APIvault</span>
-          </div>
+          </button>
 
           <div className="flex gap-0.5 ml-3 overflow-x-auto scrollbar-hide flex-1">
             {TABS.map(t => (

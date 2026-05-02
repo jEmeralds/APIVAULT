@@ -949,13 +949,13 @@ export function AdminDashboard() {
       {/* Desktop nav */}
       <div className="border-b border-gray-100 bg-white sticky top-0 z-20">
         <div className="flex items-center px-4 h-14 gap-2">
-          <div className="flex items-center gap-2 mr-2 flex-shrink-0">
+          <a href="/" className="flex items-center gap-2 mr-2 flex-shrink-0 hover:opacity-70 transition-opacity">
             <div className="w-5 h-5 rounded bg-gray-900 flex items-center justify-center">
               <div className="w-1.5 h-1.5 rounded-full bg-white" />
             </div>
             <span className="font-semibold text-sm tracking-tight">APIvault</span>
             <span className="text-xs text-gray-300 hidden sm:block">Admin</span>
-          </div>
+          </a>
 
           <div className="flex gap-1 overflow-x-auto flex-1 scrollbar-hide">
             {TABS.map(t => (
