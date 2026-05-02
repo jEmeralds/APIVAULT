@@ -301,11 +301,9 @@ export function Landing() {
   const [done, setDone]       = useState({})
   const [liveData, setLiveData] = useState({})
 
-  useEffect(() => {
-    const token = localStorage.getItem('token')
-    const role  = localStorage.getItem('role')
-    if (token) nav(role === 'admin' ? '/admin' : '/app')
-  }, [])
+  // No redirect — logged-in users can visit landing page freely
+  const isLoggedIn = !!localStorage.getItem('token')
+  const userRole   = localStorage.getItem('role')
 
   // Auto-run background live cards
   useEffect(() => {
@@ -393,14 +391,23 @@ export function Landing() {
               </button>
             ))}
             <div className="w-px h-4 bg-white/10 mx-1 hidden sm:block" />
-            <button onClick={() => nav('/login')}
-              className="text-xs text-white/50 hover:text-white px-3 py-1.5 transition-colors">
-              Sign in
-            </button>
-            <button onClick={() => nav('/login')}
-              className="text-xs bg-[#34d399] text-[#050505] px-4 py-2 rounded-lg font-bold hover:bg-[#6ee7b7] transition-colors ml-1">
-              Get started →
-            </button>
+            {isLoggedIn ? (
+              <button onClick={() => nav(userRole === 'admin' ? '/admin' : '/app')}
+                className="text-xs bg-[#34d399] text-[#050505] px-4 py-2 rounded-lg font-bold hover:bg-[#6ee7b7] transition-colors ml-1">
+                Go to dashboard →
+              </button>
+            ) : (
+              <>
+                <button onClick={() => nav('/login')}
+                  className="text-xs text-white/50 hover:text-white px-3 py-1.5 transition-colors">
+                  Sign in
+                </button>
+                <button onClick={() => nav('/login')}
+                  className="text-xs bg-[#34d399] text-[#050505] px-4 py-2 rounded-lg font-bold hover:bg-[#6ee7b7] transition-colors ml-1">
+                  Get started →
+                </button>
+              </>
+            )}
           </div>
         </div>
       </nav>
@@ -508,9 +515,9 @@ export function Landing() {
               ))}
             </div>
 
-            <button onClick={() => nav('/login')}
+            <button onClick={() => nav(isLoggedIn ? (userRole === 'admin' ? '/admin' : '/app') : '/login')}
               className="w-full mt-4 py-3 bg-[#34d399] text-[#050505] rounded-xl font-bold text-sm hover:bg-[#6ee7b7] transition-colors">
-              Start building free →
+              {isLoggedIn ? 'Go to dashboard →' : 'Start building free →'}
             </button>
           </div>
 
@@ -601,9 +608,9 @@ export function Landing() {
                     {cur.type === 'live' && !done[cur.id] ? 'Run & continue →' : 'Next step →'}
                   </button>
                 ) : (
-                  <button onClick={() => nav('/login')}
+                  <button onClick={() => nav(isLoggedIn ? (userRole === 'admin' ? '/admin' : '/app') : '/login')}
                     className="px-5 py-2 bg-[#34d399] text-[#050505] text-xs rounded-lg font-bold hover:bg-[#6ee7b7] transition-colors">
-                    Start building →
+                    {isLoggedIn ? 'Dashboard →' : 'Start building →'}
                   </button>
                 )}
               </div>
@@ -761,9 +768,9 @@ curl 'https://apivault-production-736c.up.railway.app\\
             Free APIs work immediately. No credit card. Sign up and make your first API call in under 5 minutes.
           </p>
           <div className="flex flex-col sm:flex-row gap-3 justify-center">
-            <button onClick={() => nav('/login')}
+            <button onClick={() => nav(isLoggedIn ? (userRole === 'admin' ? '/admin' : '/app') : '/login')}
               className="bg-[#34d399] text-[#050505] px-8 py-4 rounded-xl font-bold hover:bg-[#6ee7b7] transition-all text-base glow">
-              Create free account →
+              {isLoggedIn ? 'Go to dashboard →' : 'Create free account →'}
             </button>
             <button onClick={() => document.getElementById('demo')?.scrollIntoView({ behavior: 'smooth' })}
               className="border border-white/12 text-white/50 px-8 py-4 rounded-xl font-medium hover:border-white/30 hover:text-white transition-all text-base">
