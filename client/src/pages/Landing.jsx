@@ -3,18 +3,20 @@ import { useEffect, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 
 const APIS = [
-  { name: 'NewsAPI',       cat: 'data',     price: '$0.0020', status: 'live' },
-  { name: 'Exchange Rates', cat: 'data',    price: 'free',    status: 'live' },
-  { name: 'REST Countries', cat: 'data',    price: 'free',    status: 'live' },
-  { name: 'GitHub API',    cat: 'dev',      price: 'free',    status: 'live' },
-  { name: 'Dictionary',    cat: 'dev',      price: 'free',    status: 'live' },
-  { name: 'OpenWeather',   cat: 'data',     price: 'free',    status: 'live' },
-  { name: 'GPT-4o',        cat: 'ai',       price: '$0.0080', status: 'soon' },
-  { name: 'HeyGen',        cat: 'ai',       price: '$0.6000', status: 'soon' },
-  { name: 'Stripe',        cat: 'payments', price: 'free',    status: 'soon' },
-  { name: 'M-Pesa',        cat: 'payments', price: 'free',    status: 'soon' },
-  { name: 'Twilio SMS',    cat: 'comms',    price: '$0.0090', status: 'soon' },
-  { name: 'Grok Image',    cat: 'ai',       price: '$0.1197', status: 'soon' },
+  { name: 'NewsAPI',        cat: 'data',     price: '$0.0020', status: 'live' },
+  { name: 'Exchange Rates', cat: 'data',     price: 'free',    status: 'live' },
+  { name: 'REST Countries', cat: 'data',     price: 'free',    status: 'live' },
+  { name: 'IP Geolocation', cat: 'data',     price: 'free',    status: 'live' },
+  { name: 'GitHub API',     cat: 'dev',      price: 'free',    status: 'live' },
+  { name: 'Dictionary API', cat: 'dev',      price: 'free',    status: 'live' },
+  { name: 'JokeAPI',        cat: 'dev',      price: 'free',    status: 'live' },
+  { name: 'OpenWeather',    cat: 'data',     price: 'free',    status: 'live' },
+  { name: 'GPT-4o',         cat: 'ai',       price: '$0.0080', status: 'soon' },
+  { name: 'HeyGen',         cat: 'ai',       price: '$0.6000', status: 'soon' },
+  { name: 'Stripe',         cat: 'payments', price: 'free',    status: 'soon' },
+  { name: 'M-Pesa',         cat: 'payments', price: 'free',    status: 'soon' },
+  { name: 'Twilio SMS',     cat: 'comms',    price: '$0.0090', status: 'soon' },
+  { name: 'Grok Image',     cat: 'ai',       price: '$0.1197', status: 'soon' },
 ]
 
 const CAT_COLOR = {
@@ -185,7 +187,7 @@ export function Landing() {
       <div className="border-y border-white/5 py-6 px-6">
         <div className="max-w-6xl mx-auto grid grid-cols-2 sm:grid-cols-4 gap-6">
           {[
-            { n: '16+',   l: 'APIs available' },
+            { n: '15+',   l: 'APIs available' },
             { n: '$0.00', l: 'to get started' },
             { n: '1',     l: 'key for everything' },
             { n: '100%',  l: 'pay per use' },

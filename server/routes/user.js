@@ -65,7 +65,7 @@ userRoute.get('/usage/stats', async (req, res) => {
 userRoute.get('/apis', async (req, res) => {
   const { data: access } = await db.from('user_api_access')
     .select('categories').eq('user_id', req.user.id).maybeSingle()
-  const categories = access?.categories || ['ai', 'dev']
+  const categories = access?.categories || ['ai', 'dev', 'data']
 
   const { data } = await db.from('api_registry')
     .select('slug, name, category, cost_per_call, markup, billing_unit, status, description')
@@ -79,7 +79,7 @@ userRoute.get('/apis', async (req, res) => {
 userRoute.get('/marketplace', async (req, res) => {
   const { data: access } = await db.from('user_api_access')
     .select('categories').eq('user_id', req.user.id).maybeSingle()
-  const myCategories = access?.categories || ['ai', 'dev']
+  const myCategories = access?.categories || ['ai', 'dev', 'data']
 
   // Get all live + paused APIs
   const { data: apis } = await db.from('api_registry')

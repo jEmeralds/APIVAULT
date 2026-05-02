@@ -3,6 +3,7 @@
 import { useEffect, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { api } from '../lib/api.js'
+import { Onboarding } from './Onboarding.jsx'
 
 const BASE = import.meta.env.VITE_API_URL || ''
 
@@ -16,7 +17,7 @@ const CAT_STYLE = {
   dev:      { badge: 'bg-orange-50 text-orange-700 border-orange-100',    label: 'Dev' },
 }
 
-const PLAN_CATS = { dev: ['ai','dev'], creator: ['ai','comms'], business: ['payments','comms','data'] }
+const PLAN_CATS = { dev: ['ai','dev','data'], creator: ['ai','comms','data'], business: ['ai','payments','comms','data','dev'] }
 
 const API_DOCS = {
   openweather: {
@@ -874,6 +875,7 @@ export function Dashboard() {
   const [usage, setUsage]       = useState([])
   const [tab, setTab]           = useState('marketplace')
   const [vaultKey, setVaultKey] = useState(null)
+  const [showOnboarding, setShowOnboarding] = useState(false)
   const nav = useNavigate()
 
   useEffect(() => {
@@ -881,6 +883,9 @@ export function Dashboard() {
       .then(([m, mkt, s, u, k]) => {
         setMe(m); setMkt(mkt); setStats(s); setUsage(u)
         if (k?.key) setVaultKey(k.key)
+        // Show onboarding if first time (no usage and never completed onboarding)
+        const onboarded = localStorage.getItem('onboarded_' + m.id)
+        if (!onboarded && u.length === 0) setShowOnboarding(true)
       })
       .catch(() => { localStorage.clear(); nav('/') })
   }, [])
@@ -889,6 +894,13 @@ export function Dashboard() {
     <div className="min-h-screen bg-white flex items-center justify-center">
       <Spinner size={6} />
     </div>
+  )
+
+  if (showOnboarding) return (
+    <Onboarding me={me} onComplete={() => {
+      localStorage.setItem('onboarded_' + me.id, '1')
+      setShowOnboarding(false)
+    }} />
   )
 
   return (

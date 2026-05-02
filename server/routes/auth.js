@@ -381,6 +381,16 @@ authRoute.post('/approve/:userId', async (req, res) => {
 
   if (error || !user) return res.status(404).json({ error: 'User not found' })
 
+  // Set correct categories based on plan
+  const PLAN_CATS = {
+    dev:      ['ai', 'dev', 'data'],
+    creator:  ['ai', 'comms', 'data'],
+    business: ['ai', 'payments', 'comms', 'data', 'dev'],
+  }
+  const cats = PLAN_CATS[user.plan] || PLAN_CATS.dev
+  await db.from('user_api_access')
+    .upsert({ user_id: req.params.userId, categories: cats, daily_limit: 10000 }, { onConflict: 'user_id' })
+
   // Add starting credits if specified
   if (starting_credits > 0) {
     await db.rpc('add_credits', {
