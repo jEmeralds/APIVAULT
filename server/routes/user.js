@@ -61,47 +61,61 @@ userRoute.get('/usage/stats', async (req, res) => {
   })
 })
 
-// GET /user/apis — APIs on user's current plan (live only)
+// GET /user/apis — all live APIs user can access
 userRoute.get('/apis', async (req, res) => {
-  const { data: access } = await db.from('user_api_access')
-    .select('categories').eq('user_id', req.user.id).maybeSingle()
-  const categories = access?.categories || ['ai', 'dev', 'data']
+  const { data: user } = await db.from('users').select('credits').eq('id', req.user.id).single()
+  const credits = parseFloat(user?.credits || 0)
 
   const { data } = await db.from('api_registry')
     .select('slug, name, category, cost_per_call, markup, billing_unit, status, description')
-    .in('category', categories)
     .eq('status', 'live')
-    .order('category')
-  res.json(data || [])
+    .order('name')
+
+  // Return APIs user can actually use
+  const accessible = (data || []).filter(api => {
+    const price = parseFloat((api.cost_per_call * (1 + api.markup / 100)).toFixed(6))
+    return price === 0 || credits > 0
+  })
+  res.json(accessible)
 })
 
-// GET /user/marketplace — ALL APIs regardless of plan, with access info
+// GET /user/marketplace
+// Simple access model:
+// - live + free cost  → active for everyone
+// - live + paid cost  → active only if user has credits
+// - paused            → coming soon
 userRoute.get('/marketplace', async (req, res) => {
-  const { data: access } = await db.from('user_api_access')
-    .select('categories').eq('user_id', req.user.id).maybeSingle()
-  const myCategories = access?.categories || ['ai', 'dev', 'data']
+  const { data: user } = await db.from('users')
+    .select('credits').eq('id', req.user.id).single()
+  const credits = parseFloat(user?.credits || 0)
 
-  // Get all live + paused APIs
   const { data: apis } = await db.from('api_registry')
     .select('slug, name, category, cost_per_call, markup, billing_unit, status, description')
     .in('status', ['live', 'paused'])
-    .order('category')
+    .order('name')
 
-  // Get user's existing requests
-  const { data: requests } = await db.from('api_requests')
-    .select('slug, status')
-    .eq('requested_by', req.user.id)
+  const result = (apis || []).map(api => {
+    const userPrice = parseFloat((api.cost_per_call * (1 + api.markup / 100)).toFixed(6))
+    const isLive    = api.status === 'live'
+    const isFree    = userPrice === 0
 
-  const requestMap = {}
-  requests?.forEach(r => { requestMap[r.slug] = r.status })
+    let state        = 'coming_soon' // paused
+    let has_access   = false
 
-  // Annotate each API with access info
-  const result = (apis || []).map(api => ({
-    ...api,
-    user_price:   parseFloat((api.cost_per_call * (1 + api.markup / 100)).toFixed(6)),
-    has_access:   myCategories.includes(api.category) && api.status === 'live',
-    request_status: requestMap[api.slug] || null,
-  }))
+    if (isLive) {
+      if (isFree) {
+        state = 'active'      // free + live = always active
+        has_access = true
+      } else if (credits > 0) {
+        state = 'active'      // paid + live + has credits = active
+        has_access = true
+      } else {
+        state = 'needs_credits' // paid + live + no credits
+      }
+    }
+
+    return { ...api, user_price: userPrice, has_access, state }
+  })
 
   res.json(result)
 })
