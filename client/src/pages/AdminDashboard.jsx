@@ -271,17 +271,30 @@ function APIs({ d, onRefresh }) {
       </div>
 
       <Table
-        cols={['Name', 'Category', 'Pool', 'Cost / call', 'Markup', 'Status', '']}
-        rows={d.map(a => [
-          <span className="font-medium text-gray-900">{a.name}</span>,
-          <Badge color={CAT_COLOR[a.category]}>{a.category}</Badge>,
-          <span className="text-gray-400 text-xs font-mono">{a.pools?.label}</span>,
-          <span className="font-mono text-xs">{a.cost_per_call > 0 ? `$${a.cost_per_call}` : 'free'}</span>,
-          <span className="font-mono text-xs">{a.markup}%</span>,
-          <Badge color={STATUS_COLOR[a.status]}>{a.status}</Badge>,
-          <button onClick={() => { setForm(a); setModal('edit') }}
-            className="text-xs text-gray-400 hover:text-gray-900 transition-colors">Edit</button>,
-        ])}
+        cols={['Name', 'Category', 'Cost', 'Master Key', 'Status', '']}
+        rows={d.map(a => {
+          const keyType = a.master_key_ref === 'no-key-required' ? 'not-needed'
+            : (a.master_key_ref && a.master_key_ref.length > 5) ? 'configured' : 'missing'
+          return [
+            <span className="font-medium text-gray-900">{a.name}</span>,
+            <Badge color={CAT_COLOR[a.category]}>{a.category}</Badge>,
+            <span className="font-mono text-xs">{a.cost_per_call > 0 ? `$${a.cost_per_call}` : 'free'}</span>,
+            <span className={`inline-flex items-center gap-1.5 text-xs font-medium px-2 py-0.5 rounded-md ${
+              keyType === 'configured' ? 'bg-green-50 text-green-700' :
+              keyType === 'not-needed' ? 'bg-gray-50 text-gray-400' :
+                                         'bg-red-50 text-red-600'
+            }`}>
+              <span className={`w-1.5 h-1.5 rounded-full flex-shrink-0 ${
+                keyType === 'configured' ? 'bg-green-500' :
+                keyType === 'not-needed' ? 'bg-gray-300' : 'bg-red-500'
+              }`} />
+              {keyType === 'configured' ? 'Key set' : keyType === 'not-needed' ? 'No key needed' : '⚠ Missing key'}
+            </span>,
+            <Badge color={STATUS_COLOR[a.status]}>{a.status}</Badge>,
+            <button onClick={() => { setForm(a); setModal('edit') }}
+              className="text-xs text-gray-400 hover:text-gray-900 transition-colors">Edit</button>,
+          ]
+        })}
       />
 
       {modal && (

@@ -80,41 +80,57 @@ userRoute.get('/apis', async (req, res) => {
 })
 
 // GET /user/marketplace
-// Simple access model:
-// - live + free cost  → active for everyone
-// - live + paid cost  → active only if user has credits
-// - paused            → coming soon
+// Access model:
+// - paused                        → coming_soon (API not ready yet)
+// - live + no master key          → coming_soon (admin hasn't configured it yet)
+// - live + has key + free         → active (always usable)
+// - live + has key + paid + credits > 0  → active
+// - live + has key + paid + no credits   → needs_credits
 userRoute.get('/marketplace', async (req, res) => {
   const { data: user } = await db.from('users')
     .select('credits').eq('id', req.user.id).single()
   const credits = parseFloat(user?.credits || 0)
 
+  // Include master_key_ref so we can check if API is actually configured
   const { data: apis } = await db.from('api_registry')
-    .select('slug, name, category, cost_per_call, markup, billing_unit, status, description')
+    .select('slug, name, category, cost_per_call, markup, billing_unit, status, description, master_key_ref')
     .in('status', ['live', 'paused'])
     .order('name')
 
   const result = (apis || []).map(api => {
-    const userPrice = parseFloat((api.cost_per_call * (1 + api.markup / 100)).toFixed(6))
-    const isLive    = api.status === 'live'
-    const isFree    = userPrice === 0
+    const userPrice  = parseFloat((api.cost_per_call * (1 + api.markup / 100)).toFixed(6))
+    const isLive     = api.status === 'live'
+    const isFree     = userPrice === 0
+    const hasKey     = api.master_key_ref &&
+                       api.master_key_ref !== 'no-key-required' &&
+                       api.master_key_ref.length > 5
+    const freeNoKey  = isLive && isFree && api.master_key_ref === 'no-key-required'
 
-    let state        = 'coming_soon' // paused
-    let has_access   = false
+    let state      = 'coming_soon'
+    let has_access = false
+    let ready      = false // whether master key is configured
 
-    if (isLive) {
-      if (isFree) {
-        state = 'active'      // free + live = always active
-        has_access = true
-      } else if (credits > 0) {
-        state = 'active'      // paid + live + has credits = active
-        has_access = true
-      } else {
-        state = 'needs_credits' // paid + live + no credits
-      }
+    if (!isLive) {
+      state = 'coming_soon'   // paused by admin
+    } else if (!hasKey && !freeNoKey) {
+      state = 'coming_soon'   // live but no master key configured
+      ready = false
+    } else if (isFree || freeNoKey) {
+      state = 'active'        // free API — always works
+      has_access = true
+      ready = true
+    } else if (credits > 0) {
+      state = 'active'        // paid API — user has credits
+      has_access = true
+      ready = true
+    } else {
+      state = 'needs_credits' // paid API — user needs to top up
+      ready = true            // API is ready, just needs credits
     }
 
-    return { ...api, user_price: userPrice, has_access, state }
+    // Don't expose master key to client
+    const { master_key_ref, ...safeApi } = api
+    return { ...safeApi, user_price: userPrice, has_access, state, ready, credits_available: credits }
   })
 
   res.json(result)

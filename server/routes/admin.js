@@ -196,21 +196,54 @@ adminRoute.get('/requests', async (req, res) => {
 
 adminRoute.patch('/requests/:id/approve', async (req, res) => {
   const { data: request } = await db.from('api_requests')
-    .select('*, users(id)').eq('id', req.params.id).single()
+    .select('*, users(id, email, plan)').eq('id', req.params.id).single()
   if (!request) return res.status(404).json({ error: 'Not found' })
 
-  // Get API category from registry using slug
+  // Get API info
   const { data: apiData } = await db.from('api_registry')
-    .select('category').eq('slug', request.slug).single()
+    .select('category, name, cost_per_call').eq('slug', request.slug).single()
 
-  // Grant category access to user
+  // Grant category access — add category to user's allowed list
   const { data: access } = await db.from('user_api_access')
     .select('categories').eq('user_id', request.users.id).maybeSingle()
-  const cats = [...new Set([...(access?.categories || ['ai','dev']), apiData?.category])]
+  const currentCats = access?.categories || ['ai', 'dev', 'data']
+  const newCats = [...new Set([...currentCats, apiData?.category])]
+
   await db.from('user_api_access')
-    .upsert({ user_id: request.users.id, categories: cats }, { onConflict: 'user_id' })
+    .upsert({ user_id: request.users.id, categories: newCats, daily_limit: 10000 }, { onConflict: 'user_id' })
 
   await db.from('api_requests').update({ status: 'approved' }).eq('id', req.params.id)
+
+  // Notify user via email
+  const isFree = parseFloat(apiData?.cost_per_call || 0) === 0
+  await sendEmail({
+    to: request.users.email,
+    subject: `Access granted — ${apiData?.name || request.slug}`,
+    html: `
+      <div style="font-family:sans-serif;max-width:480px;margin:0 auto;padding:40px 20px">
+        <div style="display:flex;align-items:center;gap:8px;margin-bottom:24px">
+          <div style="width:20px;height:20px;background:#111;border-radius:4px"></div>
+          <strong>APIvault</strong>
+        </div>
+        <h2 style="font-size:20px;font-weight:600;margin-bottom:8px">Access granted ✓</h2>
+        <p style="color:#666;margin-bottom:16px">
+          You now have access to <strong>${apiData?.name || request.slug}</strong>.
+          ${isFree
+            ? 'This API is free — you can start using it immediately.'
+            : 'This is a paid API — make sure you have credits in your account before calling it.'
+          }
+        </p>
+        <p style="color:#666;margin-bottom:24px">
+          Go to your Marketplace tab — the API will show as active and ready to use.
+        </p>
+        <a href="${process.env.APP_URL || 'https://apivault-xi.vercel.app'}/app"
+          style="display:inline-block;background:#111;color:#fff;text-decoration:none;padding:12px 24px;border-radius:8px;font-size:14px;font-weight:500">
+          Go to Marketplace →
+        </a>
+      </div>
+    `
+  })
+
   res.json({ ok: true })
 })
 
@@ -256,6 +289,24 @@ adminRoute.get('/billing/charts', async (req, res) => {
     daily:        Object.values(byDay),
     top_apis:     topApis.data || [],
   })
+})
+
+// GET /admin/apis/key-status — check which APIs have master keys configured
+adminRoute.get('/apis/key-status', async (req, res) => {
+  const { data: apis } = await db.from('api_registry')
+    .select('slug, name, status, master_key_ref')
+    .order('name')
+
+  const result = apis.map(a => ({
+    slug:       a.slug,
+    name:       a.name,
+    status:     a.status,
+    has_key:    !!(a.master_key_ref && a.master_key_ref.length > 5),
+    key_type:   a.master_key_ref === 'no-key-required' ? 'no-key-required' :
+                a.master_key_ref ? 'configured' : 'missing',
+  }))
+
+  res.json(result)
 })
 
 // ─── Manual payment verification ─────────────────────────────────────────
