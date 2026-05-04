@@ -205,7 +205,7 @@ function Overview({ d }) {
         <h3 className="text-xs font-medium text-gray-400 uppercase tracking-wide mb-3">Pool health</h3>
         <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-2">
           {d.pools?.map(p => {
-            const pct = p.floor > 0 ? Math.round((p.balance / p.floor) * 100) : 100
+            const pct = p.floor > 0 ? Math.min(100, Math.round((p.balance / p.floor) * 100)) : 100
             const bar = pct >= 100 ? 'bg-green-500' : pct >= 50 ? 'bg-amber-400' : 'bg-red-500'
             return (
               <div key={p.id} className="p-3.5 border border-gray-100 rounded-xl">
@@ -608,7 +608,7 @@ function Pools({ d, onRefresh }) {
       <Table
         cols={['Pool', 'Balance', 'Floor', 'Health', 'Status', '']}
         rows={d.map(p => {
-          const pct = p.floor > 0 ? Math.round((p.balance / p.floor) * 100) : 100
+          const pct = p.floor > 0 ? Math.min(100, Math.round((p.balance / p.floor) * 100)) : 100
           const bar = pct >= 100 ? 'bg-green-500' : pct >= 50 ? 'bg-amber-400' : 'bg-red-500'
           return [
             <span className="font-medium text-gray-900">{p.label}</span>,

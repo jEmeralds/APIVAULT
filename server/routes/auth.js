@@ -114,43 +114,54 @@ function signupRateLimited(ip) {
 // ─── Email sender via SendGrid ────────────────────────────────────────────
 
 async function sendEmail({ to, subject, html }) {
-  const RESEND_KEY = process.env.RESEND_API_KEY
-  console.log(`[EMAIL] Attempting to send to: ${to} | Subject: ${subject}`)
-  console.log(`[EMAIL] Key present: ${!!RESEND_KEY} | Key starts: ${RESEND_KEY?.substring(0,8)}`)
+  console.log(`[EMAIL] Sending to: ${to} | Subject: ${subject}`)
 
-  if (!RESEND_KEY) {
-    console.log(`[EMAIL] SKIPPED — EMAIL_KEY/RESEND_API_KEY not set. Keys available: ${Object.keys(process.env).filter(k=>k.includes('EMAIL')||k.includes('RESEND')||k.includes('KEY')).join(',')}`)
-    return
-  }
+  // Try Nodemailer + Gmail SMTP first
+  const gmailUser = process.env.GMAIL_USER
+  const gmailPass = process.env.GMAIL_APP_PASSWORD
 
-  try {
-    const res = await fetch('https://api.resend.com/emails', {
-      method: 'POST',
-      headers: {
-        'Authorization': `Bearer ${RESEND_KEY}`,
-        'Content-Type':  'application/json',
-      },
-      body: JSON.stringify({
-        from:    'APIvault <onboarding@resend.dev>',
-        to:      [RESEND_TO || to],
-        subject: RESEND_TO && RESEND_TO !== to ? `[To: ${to}] ${subject}` : subject,
-        html:    RESEND_TO && RESEND_TO !== to
-          ? `<p style="background:#f5f5f5;padding:8px;border-radius:4px;font-size:12px;color:#666">
-               Originally intended for: <strong>${to}</strong>
-             </p>${html}`
-          : html,
-      }),
-    })
-
-    if (res.ok) {
-      console.log(`[EMAIL] Sent successfully to: ${to}`)
-    } else {
-      const body = await res.text()
-      console.error(`[EMAIL] Resend error ${res.status}:`, body)
+  if (gmailUser && gmailPass) {
+    try {
+      const nodemailer = await import('nodemailer')
+      const transporter = nodemailer.default.createTransport({
+        service: 'gmail',
+        auth: { user: gmailUser, pass: gmailPass },
+      })
+      await transporter.sendMail({
+        from: `"APIvault" <${gmailUser}>`,
+        to,
+        subject,
+        html,
+      })
+      console.log(`[EMAIL] Sent via Gmail SMTP to ${to}`)
+      return { ok: true }
+    } catch (e) {
+      console.error(`[EMAIL] Gmail SMTP failed: ${e.message}`)
     }
-  } catch (err) {
-    console.error(`[EMAIL] Fetch failed:`, err.message)
   }
+
+  // Fallback: Resend API
+  const resendKey = process.env.RESEND_API_KEY || process.env.EMAIL_KEY
+  if (resendKey) {
+    try {
+      const r = await fetch('https://api.resend.com/emails', {
+        method: 'POST',
+        headers: { 'Authorization': `Bearer ${resendKey}`, 'Content-Type': 'application/json' },
+        body: JSON.stringify({ from: 'APIvault <onboarding@resend.dev>', to: [to], subject, html }),
+      })
+      const d = await r.json()
+      if (r.ok) { console.log(`[EMAIL] Sent via Resend to ${to}`); return { ok: true } }
+      console.error(`[EMAIL] Resend failed: ${JSON.stringify(d)}`)
+    } catch (e) {
+      console.error(`[EMAIL] Resend error: ${e.message}`)
+    }
+  }
+
+  // Last resort — log the email
+  console.log(`[EMAIL] SKIPPED — no email provider configured`)
+  console.log(`[EMAIL] Subject: ${subject}`)
+  console.log(`[EMAIL] To: ${to}`)
+  return { ok: false }
 }
 
 // ─── POST /auth/login ─────────────────────────────────────────────────────
