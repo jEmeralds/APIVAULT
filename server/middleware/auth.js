@@ -4,8 +4,11 @@ import { limiter } from './rateLimit.js'
 
 // Resolves vault key → user row. Attaches req.user.
 export async function auth(req, res, next) {
-  const key = req.headers['x-vault-key']
-  if (!key) return res.status(401).json({ error: 'No vault key provided' })
+  const rawKey = req.headers['x-vault-key']
+  if (!rawKey) return res.status(401).json({ error: 'No vault key provided' })
+
+  // Strip sk-vault- prefix if present (display format)
+  const key = rawKey.startsWith('sk-vault-') ? rawKey.slice(9) : rawKey
 
   if (limiter.isBadKeyBlocked(req.ip)) {
     return res.status(429).json({ error: 'Too many failed attempts. Try again in 1 hour.' })
@@ -32,8 +35,11 @@ export async function auth(req, res, next) {
 
 // Admin-only routes
 export async function adminAuth(req, res, next) {
-  const key = req.headers['x-vault-key']
-  if (!key) return res.status(401).json({ error: 'No key' })
+  const rawKey = req.headers['x-vault-key']
+  if (!rawKey) return res.status(401).json({ error: 'No key' })
+
+  // Strip sk-vault- prefix if present
+  const key = rawKey.startsWith('sk-vault-') ? rawKey.slice(9) : rawKey
 
   const { data: user } = await db
     .from('users')
