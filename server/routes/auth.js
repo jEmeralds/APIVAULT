@@ -116,51 +116,39 @@ function signupRateLimited(ip) {
 async function sendEmail({ to, subject, html }) {
   console.log(`[EMAIL] Sending to: ${to} | Subject: ${subject}`)
 
-  // Try Nodemailer + Gmail SMTP first
-  const gmailUser = process.env.GMAIL_USER
-  const gmailPass = process.env.GMAIL_APP_PASSWORD
+  const sgKey = process.env.SENDGRID_API_KEY
+  if (!sgKey) {
+    console.log(`[EMAIL] SKIPPED — SENDGRID_API_KEY not set`)
+    return { ok: false }
+  }
 
-  if (gmailUser && gmailPass) {
-    try {
-      const nodemailer = await import('nodemailer')
-      const transporter = nodemailer.default.createTransport({
-        service: 'gmail',
-        auth: { user: gmailUser, pass: gmailPass },
-      })
-      await transporter.sendMail({
-        from: `"APIvault" <${gmailUser}>`,
-        to,
+  try {
+    const r = await fetch('https://api.sendgrid.com/v3/mail/send', {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${sgKey}`,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        personalizations: [{ to: [{ email: to }] }],
+        from: { email: 'ivey.ads100@gmail.com', name: 'APIvault' },
         subject,
-        html,
-      })
-      console.log(`[EMAIL] Sent via Gmail SMTP to ${to}`)
+        content: [{ type: 'text/html', value: html }],
+      }),
+    })
+
+    if (r.status === 202) {
+      console.log(`[EMAIL] Sent via SendGrid to ${to}`)
       return { ok: true }
-    } catch (e) {
-      console.error(`[EMAIL] Gmail SMTP failed: ${e.message}`)
     }
+
+    const d = await r.text()
+    console.error(`[EMAIL] SendGrid error ${r.status}: ${d}`)
+  } catch (e) {
+    console.error(`[EMAIL] SendGrid failed: ${e.message}`)
   }
 
-  // Fallback: Resend API
-  const resendKey = process.env.RESEND_API_KEY || process.env.EMAIL_KEY
-  if (resendKey) {
-    try {
-      const r = await fetch('https://api.resend.com/emails', {
-        method: 'POST',
-        headers: { 'Authorization': `Bearer ${resendKey}`, 'Content-Type': 'application/json' },
-        body: JSON.stringify({ from: 'APIvault <onboarding@resend.dev>', to: [to], subject, html }),
-      })
-      const d = await r.json()
-      if (r.ok) { console.log(`[EMAIL] Sent via Resend to ${to}`); return { ok: true } }
-      console.error(`[EMAIL] Resend failed: ${JSON.stringify(d)}`)
-    } catch (e) {
-      console.error(`[EMAIL] Resend error: ${e.message}`)
-    }
-  }
-
-  // Last resort — log the email
-  console.log(`[EMAIL] SKIPPED — no email provider configured`)
-  console.log(`[EMAIL] Subject: ${subject}`)
-  console.log(`[EMAIL] To: ${to}`)
+  console.log(`[EMAIL] FAILED — Subject: ${subject} | To: ${to}`)
   return { ok: false }
 }
 
