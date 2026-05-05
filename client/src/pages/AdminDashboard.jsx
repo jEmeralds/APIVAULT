@@ -505,8 +505,8 @@ function Users({ d, onRefresh }) {
           {modal === 'approve' && (
             <>
               <div className="mb-4 p-3 bg-green-50 border border-green-100 rounded-lg">
-                <div className="text-xs text-gray-500 mb-1">Plan requested</div>
-                <div className="font-medium text-gray-900 capitalize">{form.plan}</div>
+                <div className="text-xs text-gray-500 mb-1">User</div>
+                <div className="font-medium text-gray-900">{form.email}</div>
               </div>
               <Field label="Starting credits ($)">
                 <Input type="number" value={form.starting_credits}
@@ -514,8 +514,12 @@ function Users({ d, onRefresh }) {
                   placeholder="e.g. 5" />
               </Field>
               <p className="text-xs text-gray-400 -mt-2 mb-2">
-                User will receive this amount to start making API calls immediately after approval.
+                Credits added to account on approval.
               </p>
+              <div className="p-3 bg-amber-50 border border-amber-100 rounded-lg text-xs text-amber-700">
+                ⚠ Email delivery requires a verified domain on Resend. If the user doesn't receive an email,
+                share their approval manually or ask them to log in directly.
+              </div>
             </>
           )}
           {modal === 'add' && (
