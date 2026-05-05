@@ -6,7 +6,7 @@
 // 4. Client calls GET /checkout/verify?reference=xxx → credits user
 
 import { Router } from 'express'
-import { jwtAuth as auth } from '../routes/auth.js'
+import { auth } from '../middleware/auth.js'
 import { billing } from '../services/billing.js'
 import { db }      from '../db.js'
 
