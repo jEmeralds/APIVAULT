@@ -105,7 +105,6 @@ function APICard({ a, expanded, onExpand, vaultKey, onAddCredits }) {
         </button>
       )
     }
-    // coming_soon — show why
     if (!a.ready) {
       return <span className="text-xs text-gray-300 font-medium italic">Key not configured</span>
     }
@@ -138,7 +137,6 @@ function APICard({ a, expanded, onExpand, vaultKey, onAddCredits }) {
             <StateButton />
           </div>
 
-          {/* State explanation */}
           {a.state === 'needs_credits' && (
             <div className="mt-2 text-xs text-amber-600 bg-amber-50 rounded-lg px-2.5 py-1.5 flex items-center gap-1.5">
               <span>⚠</span>
@@ -160,7 +158,6 @@ function APICard({ a, expanded, onExpand, vaultKey, onAddCredits }) {
 
       {isOpen && doc && (
         <div className="border-t border-gray-100">
-          {/* Lang tabs + code */}
           <div className="p-4 pb-3">
             <div className="flex items-center justify-between mb-2">
               <div className="flex gap-1 p-1 bg-gray-800 rounded-lg">
@@ -181,7 +178,6 @@ function APICard({ a, expanded, onExpand, vaultKey, onAddCredits }) {
             </div>
           </div>
 
-          {/* Run button */}
           {doc.tryPath && (
             <div className="px-4 pb-4">
               <div className="flex items-center gap-3 mb-3">
@@ -235,7 +231,6 @@ function Marketplace({ apis, me, vaultKey, onAddCredits }) {
         </div>
       </div>
 
-      {/* Credits nudge for paid APIs */}
       {hasLow && apis.some(a => a.state === 'needs_credits') && (
         <div className="mb-5 p-4 bg-amber-50 border border-amber-100 rounded-xl flex items-center justify-between gap-4">
           <div>
@@ -249,7 +244,6 @@ function Marketplace({ apis, me, vaultKey, onAddCredits }) {
         </div>
       )}
 
-      {/* Category filters */}
       <div className="flex gap-2 mb-5 overflow-x-auto scrollbar-hide pb-1">
         {cats.map(c => (
           <button key={c} onClick={() => setFilter(c)}
@@ -261,7 +255,6 @@ function Marketplace({ apis, me, vaultKey, onAddCredits }) {
         ))}
       </div>
 
-      {/* Grid */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
         {filtered.map(a => (
           <APICard key={a.slug} a={a}
@@ -389,7 +382,6 @@ function Billing({ me, setMe, vaultKey, setVaultKey }) {
         </div>
       )}
 
-      {/* Balance */}
       <div className="bg-white border border-gray-100 rounded-xl p-5 mb-4">
         <div className="flex items-center justify-between mb-3">
           <div>
@@ -412,7 +404,6 @@ function Billing({ me, setMe, vaultKey, setVaultKey }) {
         )}
       </div>
 
-      {/* Buy credits */}
       <div className="bg-white border border-gray-100 rounded-xl p-5 mb-4">
         <div className="text-sm font-bold text-gray-900 mb-1">Add credits</div>
         <div className="text-xs text-gray-400 mb-4">Secure payment via Paystack · M-Pesa and card accepted</div>
@@ -428,7 +419,6 @@ function Billing({ me, setMe, vaultKey, setVaultKey }) {
         <CustomAmount onBuy={buy} />
       </div>
 
-      {/* What credits unlock */}
       <div className="bg-white border border-gray-100 rounded-xl p-5 mb-4">
         <div className="text-sm font-bold text-gray-900 mb-3">What your credits unlock</div>
         <div className="space-y-2">
@@ -445,7 +435,6 @@ function Billing({ me, setMe, vaultKey, setVaultKey }) {
         </div>
       </div>
 
-      {/* Vault key */}
       <div className="bg-white border border-gray-100 rounded-xl p-5">
         <div className="text-sm font-bold text-gray-900 mb-1">Your vault key</div>
         <div className="text-xs text-gray-400 mb-3">
@@ -490,7 +479,6 @@ function Docs({ apis, vaultKey }) {
       </p>
 
       <div className="flex gap-5">
-        {/* Sidebar */}
         <div className="w-40 flex-shrink-0">
           <div className="text-xs font-semibold text-gray-400 uppercase tracking-wide mb-2">Live APIs</div>
           <div className="space-y-1">
@@ -503,7 +491,6 @@ function Docs({ apis, vaultKey }) {
           </div>
         </div>
 
-        {/* Content */}
         <div className="flex-1 min-w-0">
           {a && doc ? (
             <div>
@@ -515,7 +502,6 @@ function Docs({ apis, vaultKey }) {
                 <Tag color={CAT_COLOR[a.category] || 'gray'}>{a.category}</Tag>
               </div>
 
-              {/* Auth */}
               <div className="bg-gray-50 border border-gray-100 rounded-xl p-4 mb-5">
                 <div className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-2">Authentication</div>
                 <div className="text-sm text-gray-600 mb-2">Add your vault key to every request:</div>
@@ -524,7 +510,6 @@ function Docs({ apis, vaultKey }) {
                 </div>
               </div>
 
-              {/* Pricing */}
               <div className="bg-white border border-gray-100 rounded-xl p-4 mb-5 flex items-center gap-4">
                 <div>
                   <div className="text-xs font-semibold text-gray-400 uppercase tracking-wide mb-1">Price per call</div>
@@ -539,7 +524,6 @@ function Docs({ apis, vaultKey }) {
                 )}
               </div>
 
-              {/* Lang picker */}
               <div className="flex gap-1 p-1 bg-gray-100 rounded-lg w-fit mb-4">
                 {[['js','JavaScript'],['python','Python'],['curl','cURL']].map(([id,lbl]) => (
                   <button key={id} onClick={() => setLang(id)}
@@ -549,7 +533,6 @@ function Docs({ apis, vaultKey }) {
                 ))}
               </div>
 
-              {/* Endpoints */}
               <div className="space-y-4">
                 {doc.endpoints.map((ep, i) => (
                   <div key={i} className="bg-white border border-gray-100 rounded-xl overflow-hidden">
@@ -707,10 +690,10 @@ export function Dashboard() {
   const [tab, setTab]           = useState('marketplace')
   const [vaultKey, setVaultKey] = useState(null)
   const [showOnboarding, setShowOnboarding] = useState(false)
+  const [navOpen, setNavOpen]   = useState(false)         // ← NEW
   const nav = useNavigate()
 
   useEffect(() => {
-    // Handle Paystack callback
     const params = new URLSearchParams(window.location.search)
     const ref = params.get('reference')
     if (ref) {
@@ -739,9 +722,12 @@ export function Dashboard() {
 
   return (
     <div className="min-h-screen bg-[#fafafa]">
-      {/* Nav */}
+
+      {/* ── Nav ─────────────────────────────────────────────────────────── */}
       <div className="border-b border-gray-100 bg-white sticky top-0 z-20">
-        <div className="flex items-center px-4 h-14 gap-2 max-w-6xl mx-auto">
+        <div className="max-w-6xl mx-auto px-4 h-14 flex items-center justify-between relative">
+
+          {/* Logo */}
           <button onClick={() => nav('/')}
             className="flex items-center gap-2 flex-shrink-0 hover:opacity-60 transition-opacity">
             <div className="w-5 h-5 rounded bg-gray-900 flex items-center justify-center">
@@ -750,10 +736,11 @@ export function Dashboard() {
             <span className="font-bold text-sm tracking-tight">APIvault</span>
           </button>
 
-          <div className="flex gap-0.5 ml-4 overflow-x-auto scrollbar-hide flex-1">
+          {/* Desktop tabs — centered */}
+          <div className="hidden md:flex items-center gap-0.5 absolute left-1/2 -translate-x-1/2">
             {TABS.map(t => (
               <button key={t.id} onClick={() => setTab(t.id)}
-                className={`px-3 py-1.5 text-xs sm:text-sm rounded-lg transition-colors flex-shrink-0 font-medium ${
+                className={`px-3 py-1.5 text-sm rounded-lg transition-colors font-medium ${
                   tab === t.id ? 'bg-gray-900 text-white' : 'text-gray-500 hover:text-gray-900 hover:bg-gray-100'
                 }`}>
                 {t.label}
@@ -761,15 +748,46 @@ export function Dashboard() {
             ))}
           </div>
 
-          <div className="flex items-center gap-2 flex-shrink-0 ml-2">
+          {/* Right: credits + hamburger */}
+          <div className="flex items-center gap-3 flex-shrink-0">
             <div className="hidden sm:block text-right">
-              <div className={`text-xs font-bold ${parseFloat(me.credits)<1?'text-red-500':'text-gray-900'}`}>
+              <div className={`text-xs font-bold ${parseFloat(me.credits) < 1 ? 'text-red-500' : 'text-gray-900'}`}>
                 ${parseFloat(me.credits).toFixed(2)}
               </div>
               <div className="text-[10px] text-gray-400">credits</div>
             </div>
+            {/* Hamburger — mobile only */}
+            <button onClick={() => setNavOpen(o => !o)}
+              aria-label="Toggle menu"
+              className="md:hidden flex flex-col justify-center items-center gap-[5px] w-8 h-8 rounded-lg hover:bg-gray-100 transition-colors">
+              <span className={`block h-0.5 w-5 bg-gray-700 rounded transition-all duration-200 ${navOpen ? 'rotate-45 translate-y-[7px]' : ''}`} />
+              <span className={`block h-0.5 w-5 bg-gray-700 rounded transition-all duration-200 ${navOpen ? 'opacity-0' : ''}`} />
+              <span className={`block h-0.5 w-5 bg-gray-700 rounded transition-all duration-200 ${navOpen ? '-rotate-45 -translate-y-[7px]' : ''}`} />
+            </button>
           </div>
         </div>
+
+        {/* Mobile dropdown */}
+        {navOpen && (
+          <div className="md:hidden border-t border-gray-100 bg-white">
+            <div className="max-w-6xl mx-auto px-4 py-2 flex flex-col gap-0.5">
+              {TABS.map(t => (
+                <button key={t.id}
+                  onClick={() => { setTab(t.id); setNavOpen(false) }}
+                  className={`w-full text-left px-4 py-3 text-sm rounded-lg transition-colors font-medium ${
+                    tab === t.id ? 'bg-gray-900 text-white' : 'text-gray-600 hover:bg-gray-100'
+                  }`}>
+                  {t.label}
+                </button>
+              ))}
+              <div className="px-4 py-3 border-t border-gray-100 mt-1">
+                <span className={`text-xs font-semibold ${parseFloat(me.credits) < 1 ? 'text-red-500' : 'text-gray-500'}`}>
+                  ${parseFloat(me.credits).toFixed(2)} credits
+                </span>
+              </div>
+            </div>
+          </div>
+        )}
       </div>
 
       {/* Content */}

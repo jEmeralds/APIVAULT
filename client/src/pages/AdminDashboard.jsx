@@ -140,7 +140,6 @@ function ModalActions({ onClose, onSave, saving, saveLabel = 'Save', saveColor }
 
 function Overview({ d }) {
   if (!d) return <Loader />
-  // System alerts only on overview — user signups handled in Users tab
   const unresolved = d.alerts?.filter(a =>
     !a.resolved &&
     !['user_pending','user_verified','api_requested'].includes(a.type)
@@ -247,7 +246,6 @@ function APIs({ d, onRefresh }) {
           status:        form.status,
           description:   form.description,
         })
-        // Rotate master key if a new one was provided
         if (form.newMasterKey?.trim()) {
           await api.rotateKey(form.slug, form.newMasterKey.trim())
         }
@@ -419,7 +417,6 @@ function Users({ d, onRefresh }) {
         </button>
       </div>
 
-      {/* Pending section */}
       {pending.length > 0 && (
         <div className="mb-6">
           <div className="flex items-center gap-2 mb-3">
@@ -467,7 +464,6 @@ function Users({ d, onRefresh }) {
         </div>
       )}
 
-      {/* Active + suspended users */}
       <div>
         {pending.length > 0 && (
           <div className="text-xs font-medium text-gray-400 uppercase tracking-wide mb-3">Active & suspended</div>
@@ -492,7 +488,6 @@ function Users({ d, onRefresh }) {
         />
       </div>
 
-      {/* Modals */}
       {modal && (
         <Modal
           title={
@@ -686,31 +681,16 @@ function Billing({ d }) {
       </div>
 
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-4">
-        {/* Revenue trend */}
         <div className="bg-white border border-gray-100 rounded-xl p-4">
           <div className="text-xs font-medium text-gray-500 mb-1">Daily revenue — last 7 days</div>
-          <BarChart
-            data={d.daily || []}
-            valueKey="revenue"
-            labelKey="date"
-            color="bg-green-500"
-            formatVal={v => `$${v.toFixed(2)}`}
-          />
+          <BarChart data={d.daily || []} valueKey="revenue" labelKey="date" color="bg-green-500" formatVal={v => `$${v.toFixed(2)}`} />
         </div>
-
-        {/* Call volume trend */}
         <div className="bg-white border border-gray-100 rounded-xl p-4">
           <div className="text-xs font-medium text-gray-500 mb-1">Daily calls — last 7 days</div>
-          <BarChart
-            data={d.daily || []}
-            valueKey="calls"
-            labelKey="date"
-            color="bg-indigo-500"
-          />
+          <BarChart data={d.daily || []} valueKey="calls" labelKey="date" color="bg-indigo-500" />
         </div>
       </div>
 
-      {/* Top APIs by revenue */}
       {d.top_apis?.length > 0 && (
         <div className="bg-white border border-gray-100 rounded-xl p-4 mb-4">
           <div className="text-xs font-medium text-gray-500 mb-3">Top APIs by revenue</div>
@@ -737,7 +717,6 @@ function Billing({ d }) {
         <div className="text-3xl font-semibold tracking-tight">{d.call_count?.toLocaleString()}</div>
       </div>
 
-      {/* Payment recovery */}
       <div className="bg-white border border-amber-100 rounded-xl p-4">
         <div className="text-xs font-semibold text-amber-600 mb-1">Payment recovery</div>
         <div className="text-xs text-gray-400 mb-3">
@@ -818,13 +797,12 @@ function Requests({ d, onRefresh }) {
   async function grant(r) {
     setSaving(r.id)
     try {
-      // Find user's current categories and add the API's category
       const user = await api.allUsers().then(users => users.find(u => u.id === r.requested_by))
       if (user) {
-        const { data: access } = await fetch(
+        await fetch(
           `${import.meta.env.VITE_API_URL || ''}/admin/users/${user.id}/access`,
           { method: 'PATCH', headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${localStorage.getItem('token')}` },
-            body: JSON.stringify({ categories: [...new Set([...(user.categories || ['ai','dev']), r.api_category]), ], daily_limit: 1000 }) }
+            body: JSON.stringify({ categories: [...new Set([...(user.categories || ['ai','dev']), r.api_category])], daily_limit: 1000 }) }
         )
       }
       await fetch(`${import.meta.env.VITE_API_URL || ''}/admin/requests/${r.id}/approve`,
@@ -932,8 +910,9 @@ const TABS = [
 ]
 
 export function AdminDashboard() {
-  const [tab, setTab]   = useState('apis')
-  const [data, setData] = useState({})
+  const [tab, setTab]         = useState('apis')
+  const [data, setData]       = useState({})
+  const [navOpen, setNavOpen] = useState(false)         // ← NEW
   const nav = useNavigate()
 
   const load = useCallback(async (t) => {
@@ -958,15 +937,17 @@ export function AdminDashboard() {
 
   useEffect(() => { load(tab) }, [tab])
 
-  // Show pending badge on Users tab
   const pendingCount = data.users ? data.users.filter(u => u.status === 'pending').length : 0
 
   return (
     <div className="min-h-screen bg-[#fafafa]">
-      {/* Desktop nav */}
+
+      {/* ── Nav ─────────────────────────────────────────────────────────── */}
       <div className="border-b border-gray-100 bg-white sticky top-0 z-20">
-        <div className="flex items-center px-4 h-14 gap-2">
-          <a href="/" className="flex items-center gap-2 mr-2 flex-shrink-0 hover:opacity-70 transition-opacity">
+        <div className="px-4 h-14 flex items-center justify-between relative">
+
+          {/* Logo */}
+          <a href="/" className="flex items-center gap-2 flex-shrink-0 hover:opacity-70 transition-opacity">
             <div className="w-5 h-5 rounded bg-gray-900 flex items-center justify-center">
               <div className="w-1.5 h-1.5 rounded-full bg-white" />
             </div>
@@ -974,13 +955,12 @@ export function AdminDashboard() {
             <span className="text-xs text-gray-300 hidden sm:block">Admin</span>
           </a>
 
-          <div className="flex gap-1 overflow-x-auto flex-1 scrollbar-hide">
+          {/* Desktop tabs — centered */}
+          <div className="hidden md:flex items-center gap-1 absolute left-1/2 -translate-x-1/2">
             {TABS.map(t => (
               <button key={t.id} onClick={() => setTab(t.id)}
-                className={`relative px-3 py-1.5 text-xs sm:text-sm rounded-lg transition-colors flex-shrink-0 ${
-                  tab === t.id
-                    ? 'bg-gray-900 text-white font-medium'
-                    : 'text-gray-500 hover:text-gray-900 hover:bg-gray-100'
+                className={`relative px-3 py-1.5 text-sm rounded-lg transition-colors ${
+                  tab === t.id ? 'bg-gray-900 text-white font-medium' : 'text-gray-500 hover:text-gray-900 hover:bg-gray-100'
                 }`}>
                 {t.label}
                 {t.id === 'users' && pendingCount > 0 && (
@@ -997,11 +977,53 @@ export function AdminDashboard() {
             ))}
           </div>
 
-          <button onClick={() => { localStorage.clear(); nav('/') }}
-            className="flex-shrink-0 text-xs text-gray-400 hover:text-gray-600 transition-colors ml-2">
-            Sign out
-          </button>
+          {/* Right: sign out + hamburger */}
+          <div className="flex items-center gap-3 flex-shrink-0">
+            <button onClick={() => { localStorage.clear(); nav('/') }}
+              className="hidden md:block text-xs text-gray-400 hover:text-gray-600 transition-colors">
+              Sign out
+            </button>
+            {/* Hamburger — mobile only */}
+            <button onClick={() => setNavOpen(o => !o)}
+              aria-label="Toggle menu"
+              className="md:hidden flex flex-col justify-center items-center gap-[5px] w-8 h-8 rounded-lg hover:bg-gray-100 transition-colors">
+              <span className={`block h-0.5 w-5 bg-gray-700 rounded transition-all duration-200 ${navOpen ? 'rotate-45 translate-y-[7px]' : ''}`} />
+              <span className={`block h-0.5 w-5 bg-gray-700 rounded transition-all duration-200 ${navOpen ? 'opacity-0' : ''}`} />
+              <span className={`block h-0.5 w-5 bg-gray-700 rounded transition-all duration-200 ${navOpen ? '-rotate-45 -translate-y-[7px]' : ''}`} />
+            </button>
+          </div>
         </div>
+
+        {/* Mobile dropdown */}
+        {navOpen && (
+          <div className="md:hidden border-t border-gray-100 bg-white">
+            <div className="px-4 py-2 flex flex-col gap-0.5">
+              {TABS.map(t => (
+                <button key={t.id}
+                  onClick={() => { setTab(t.id); setNavOpen(false) }}
+                  className={`relative w-full text-left px-4 py-3 text-sm rounded-lg transition-colors font-medium ${
+                    tab === t.id ? 'bg-gray-900 text-white' : 'text-gray-600 hover:bg-gray-100'
+                  }`}>
+                  <span>{t.label}</span>
+                  {t.id === 'users' && pendingCount > 0 && (
+                    <span className="ml-2 inline-flex items-center justify-center w-4 h-4 bg-amber-500 text-white text-xs rounded-full">
+                      {pendingCount}
+                    </span>
+                  )}
+                  {t.id === 'requests' && (data.requests?.filter(r => r.status === 'pending').length > 0) && (
+                    <span className="ml-2 inline-flex items-center justify-center w-4 h-4 bg-blue-500 text-white text-xs rounded-full">
+                      {data.requests.filter(r => r.status === 'pending').length}
+                    </span>
+                  )}
+                </button>
+              ))}
+              <button onClick={() => { localStorage.clear(); nav('/') }}
+                className="w-full text-left px-4 py-3 text-sm text-red-500 hover:bg-red-50 rounded-lg transition-colors border-t border-gray-100 mt-1">
+                Sign out
+              </button>
+            </div>
+          </div>
+        )}
       </div>
 
       <div className="max-w-6xl mx-auto px-4 sm:px-6 py-6">
