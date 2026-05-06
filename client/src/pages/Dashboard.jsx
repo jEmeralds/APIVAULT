@@ -35,17 +35,21 @@ function CopyBtn({ text, label = 'Copy' }) {
 
 function Tag({ children, color = 'gray' }) {
   const cls = {
-    gray:   'bg-gray-100 text-gray-500',
-    green:  'bg-green-50 text-green-700',
-    amber:  'bg-amber-50 text-amber-700',
-    blue:   'bg-blue-50 text-blue-700',
-    purple: 'bg-purple-50 text-purple-700',
-    orange: 'bg-orange-50 text-orange-700',
+    gray:    'bg-gray-100 text-gray-500',
+    green:   'bg-green-50 text-green-700',
+    amber:   'bg-amber-50 text-amber-700',
+    blue:    'bg-blue-50 text-blue-700',
+    purple:  'bg-purple-50 text-purple-700',
+    orange:  'bg-orange-50 text-orange-700',
+    teal:    'bg-teal-50 text-teal-700',
+    emerald: 'bg-emerald-50 text-emerald-700',
+    rose:    'bg-rose-50 text-rose-700',
+    pink:    'bg-pink-50 text-pink-700',
   }
-  return <span className={`text-xs px-2 py-0.5 rounded-md font-medium ${cls[color]}`}>{children}</span>
+  return <span className={`text-xs px-2 py-0.5 rounded-md font-medium ${cls[color] || cls.gray}`}>{children}</span>
 }
 
-const CAT_COLOR = { ai:'purple', data:'amber', dev:'orange', payments:'green', comms:'blue' }
+const CAT_COLOR = { ai:'purple', data:'amber', dev:'orange', payments:'green', comms:'blue', geo:'teal', finance:'emerald', health:'rose', media:'pink' }
 
 function buildCode(slug, path, method = 'GET', lang = 'js', vaultKey = null) {
   const API_BASE = 'https://apivault-production-736c.up.railway.app'
@@ -205,14 +209,39 @@ function APICard({ a, expanded, onExpand, vaultKey, onAddCredits }) {
 
 // ─── Marketplace ──────────────────────────────────────────────────────────
 function Marketplace({ apis, me, vaultKey, onAddCredits }) {
-  const [filter, setFilter] = useState('all')
+  const [filter, setFilter]   = useState('all')
+  const [search, setSearch]   = useState('')
   const [expanded, setExpanded] = useState(null)
+  const [requesting, setRequesting] = useState(false)
+  const [requestSent, setRequestSent] = useState(false)
 
   const cats    = ['all', ...new Set(apis.map(a => a.category).sort())]
-  const filtered = filter === 'all' ? apis : apis.filter(a => a.category === filter)
-
   const active  = apis.filter(a => a.state === 'active')
   const hasLow  = parseFloat(me?.credits || 0) < 1
+
+  // Filter by category then search
+  const filtered = apis
+    .filter(a => filter === 'all' || a.category === filter)
+    .filter(a => {
+      if (!search.trim()) return true
+      const q = search.toLowerCase()
+      return a.name.toLowerCase().includes(q) ||
+             a.slug.toLowerCase().includes(q) ||
+             a.category.toLowerCase().includes(q) ||
+             a.description?.toLowerCase().includes(q)
+    })
+
+  // No results + search active = show discovery prompt
+  const showDiscovery = search.trim().length > 1 && filtered.length === 0
+
+  async function requestAPI() {
+    setRequesting(true)
+    try {
+      await api.requestAPI(search.trim())
+      setRequestSent(true)
+    } catch(e) {}
+    setRequesting(false)
+  }
 
   return (
     <div>
@@ -234,8 +263,8 @@ function Marketplace({ apis, me, vaultKey, onAddCredits }) {
       {hasLow && apis.some(a => a.state === 'needs_credits') && (
         <div className="mb-5 p-4 bg-amber-50 border border-amber-100 rounded-xl flex items-center justify-between gap-4">
           <div>
-            <div className="text-sm font-semibold text-amber-800">Free APIs are active · NewsAPI needs credits</div>
-            <div className="text-xs text-amber-600 mt-0.5">Add $1 or more to unlock NewsAPI — that gets you 1000 calls</div>
+            <div className="text-sm font-semibold text-amber-800">Free APIs are active · Some APIs need credits</div>
+            <div className="text-xs text-amber-600 mt-0.5">Add $1 or more to unlock paid APIs</div>
           </div>
           <button onClick={onAddCredits}
             className="flex-shrink-0 px-4 py-2 bg-amber-500 text-white text-xs rounded-lg font-bold hover:bg-amber-600 transition-colors">
@@ -244,6 +273,25 @@ function Marketplace({ apis, me, vaultKey, onAddCredits }) {
         </div>
       )}
 
+      {/* Search bar */}
+      <div className="relative mb-4">
+        <span className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 text-sm">🔍</span>
+        <input
+          value={search}
+          onChange={e => { setSearch(e.target.value); setRequestSent(false) }}
+          placeholder="Search APIs — or type any API name to request it..."
+          className="w-full pl-9 pr-4 py-2.5 text-sm border border-gray-200 rounded-xl
+            focus:outline-none focus:ring-2 focus:ring-gray-900 placeholder:text-gray-300 bg-white"
+        />
+        {search && (
+          <button onClick={() => { setSearch(''); setRequestSent(false) }}
+            className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-300 hover:text-gray-500 text-lg leading-none">
+            ×
+          </button>
+        )}
+      </div>
+
+      {/* Category filters */}
       <div className="flex gap-2 mb-5 overflow-x-auto scrollbar-hide pb-1">
         {cats.map(c => (
           <button key={c} onClick={() => setFilter(c)}
@@ -254,6 +302,34 @@ function Marketplace({ apis, me, vaultKey, onAddCredits }) {
           </button>
         ))}
       </div>
+
+      {/* Discovery prompt — shown when search yields no results */}
+      {showDiscovery && (
+        <div className="mb-6 p-5 border-2 border-dashed border-gray-200 rounded-xl text-center">
+          <div className="text-2xl mb-2">🔌</div>
+          <div className="font-semibold text-gray-900 mb-1">
+            "{search}" not in the vault yet
+          </div>
+          <div className="text-sm text-gray-400 mb-4">
+            Request it and we'll add it. You'll be notified when it's live.
+          </div>
+          {requestSent ? (
+            <div className="inline-flex items-center gap-2 px-4 py-2 bg-green-50 border border-green-100 text-green-700 text-sm rounded-lg font-medium">
+              ✓ Request sent — we'll notify you when it's live
+            </div>
+          ) : (
+            <button onClick={requestAPI} disabled={requesting}
+              className="px-5 py-2 bg-gray-900 text-white text-sm rounded-lg font-semibold hover:bg-gray-800 disabled:opacity-40 transition-colors">
+              {requesting ? 'Sending...' : `Request "${search}"`}
+            </button>
+          )}
+        </div>
+      )}
+
+      {/* Results */}
+      {!showDiscovery && filtered.length === 0 && search && (
+        <div className="text-center py-10 text-gray-300 text-sm">No APIs match "{search}"</div>
+      )}
 
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
         {filtered.map(a => (
