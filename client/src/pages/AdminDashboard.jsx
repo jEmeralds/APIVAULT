@@ -944,7 +944,7 @@ export function AdminDashboard() {
 
       {/* ── Nav ─────────────────────────────────────────────────────────── */}
       <div className="border-b border-gray-100 bg-white sticky top-0 z-20">
-        <div className="px-4 h-14 flex items-center justify-between relative">
+        <div className="max-w-6xl mx-auto px-4 h-14 w-full flex items-center justify-between relative">
 
           {/* Logo */}
           <a href="/" className="flex items-center gap-2 flex-shrink-0 hover:opacity-70 transition-opacity">
