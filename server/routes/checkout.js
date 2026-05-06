@@ -6,14 +6,12 @@
 // 4. Client calls GET /checkout/verify?reference=xxx → credits user
 
 import { Router } from 'express'
-import { auth } from '../middleware/auth.js'
+import { jwtAuth } from '../middleware/auth.js'
 import { billing } from '../services/billing.js'
 import { db }      from '../db.js'
 
 export const checkoutRoute = Router()
 
-// USD credit packages
-const PACKAGES = [5, 10, 25, 50, 100, 200]
 const MIN_AMOUNT = 1
 const MAX_AMOUNT = 500
 
@@ -27,7 +25,7 @@ async function getKESRate() {
 }
 
 // POST /checkout — initialize Paystack transaction
-checkoutRoute.post('/', auth, async (req, res) => {
+checkoutRoute.post('/', jwtAuth, async (req, res) => {
   const amount = parseInt(req.body.amount)
   if (!amount || amount < MIN_AMOUNT || amount > MAX_AMOUNT) {
     return res.status(400).json({ error: `Invalid amount. Min $${MIN_AMOUNT}, max $${MAX_AMOUNT}` })
