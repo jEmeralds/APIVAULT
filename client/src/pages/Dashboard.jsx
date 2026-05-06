@@ -701,7 +701,7 @@ export function Dashboard() {
       api.verifyPayment(ref).then(r => { if (r?.ok) api.me().then(m => setMe(m)) }).catch(() => {})
     }
 
-    Promise.all([api.me(), api.marketplace(), api.usageStats(), api.usage(), api.revealKey()])
+    Promise.all([api.me(), api.marketplace(), api.usageStats(), api.usage(), api.revealKey().catch(() => null)])
       .then(([m, mkt, s, u, k]) => {
         setMe(m); setApis(mkt); setStats(s); setUsage(u)
         if (k?.key) setVaultKey(k.key)
