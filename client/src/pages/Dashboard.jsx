@@ -78,11 +78,12 @@ function APICard({ a, expanded, onExpand, vaultKey, onAddCredits }) {
   const doc = API_DOCS[a.slug]
 
   async function run() {
-    if (!doc?.tryPath) return
+    const tryPath = doc?.tryPath
+    if (!tryPath || !vaultKey) return
     setRunning(true); setResult(null)
     try {
       const uuid = vaultKey?.replace('sk-vault-', '')
-      const res  = await fetch(`${BASE}/proxy/${a.slug}${doc.tryPath}`, {
+      const res  = await fetch(`${BASE}/proxy/${a.slug}${tryPath}`, {
         headers: { 'x-vault-key': uuid }
       })
       const data = await res.json()
@@ -109,8 +110,8 @@ function APICard({ a, expanded, onExpand, vaultKey, onAddCredits }) {
         </button>
       )
     }
-    if (!a.ready) {
-      return <span className="text-xs text-gray-300 font-medium italic">Key not configured</span>
+    if (a.state === 'coming_soon') {
+      return <span className="text-xs text-gray-300 font-medium italic">Coming soon</span>
     }
     return <span className="text-xs text-gray-300 font-medium">Coming soon</span>
   }
@@ -160,7 +161,7 @@ function APICard({ a, expanded, onExpand, vaultKey, onAddCredits }) {
         </div>
       </div>
 
-      {isOpen && doc && (
+      {isOpen && (
         <div className="border-t border-gray-100">
           <div className="p-4 pb-3">
             <div className="flex items-center justify-between mb-2">
@@ -174,33 +175,38 @@ function APICard({ a, expanded, onExpand, vaultKey, onAddCredits }) {
               </div>
               <div className="flex items-center gap-2">
                 {vaultKey && <span className="text-[10px] text-green-400 font-medium">✓ Key loaded</span>}
-                <CopyBtn text={buildCode(a.slug, doc.tryPath || '/', 'GET', lang, vaultKey)} />
+                <CopyBtn text={buildCode(a.slug, doc?.tryPath || '/', 'GET', lang, vaultKey)} />
               </div>
             </div>
             <div className="bg-gray-950 rounded-xl p-4 overflow-x-auto">
-              <pre className="text-xs text-gray-300 font-mono leading-relaxed whitespace-pre">{buildCode(a.slug, doc.tryPath || '/', 'GET', lang, vaultKey)}</pre>
+              <pre className="text-xs text-gray-300 font-mono leading-relaxed whitespace-pre">{buildCode(a.slug, doc?.tryPath || '/', 'GET', lang, vaultKey)}</pre>
             </div>
           </div>
 
-          {doc.tryPath && (
-            <div className="px-4 pb-4">
-              <div className="flex items-center gap-3 mb-3">
-                <button onClick={run} disabled={running || !vaultKey}
-                  className="px-4 py-2 bg-indigo-600 text-white text-xs rounded-lg hover:bg-indigo-700 disabled:opacity-40 font-semibold flex items-center gap-2 transition-colors">
-                  {running ? <><Spin s={3} /><span>Running...</span></> : '▶ Run live'}
-                </button>
-                <span className="text-xs text-gray-400">{vaultKey ? 'Real API call · uses credits' : 'Reveal key in Billing to run'}</span>
-              </div>
-              {result && (
-                <div className={`rounded-xl p-3.5 border ${result.ok ? 'bg-green-50 border-green-100' : 'bg-red-50 border-red-100'}`}>
-                  <div className={`text-xs font-semibold mb-2 ${result.ok ? 'text-green-700' : 'text-red-600'}`}>
-                    {result.ok ? `✓ ${result.status} OK` : `✗ ${result.status || 'Error'}`}
-                  </div>
-                  <pre className="text-xs text-gray-600 font-mono whitespace-pre-wrap overflow-x-auto max-h-48">{JSON.stringify(result.data || result.error, null, 2)}</pre>
-                </div>
-              )}
+          <div className="px-4 pb-4">
+            <div className="flex items-center gap-3 mb-3">
+              <button onClick={run} disabled={running || !vaultKey || !doc?.tryPath}
+                className="px-4 py-2 bg-indigo-600 text-white text-xs rounded-lg hover:bg-indigo-700 disabled:opacity-40 font-semibold flex items-center gap-2 transition-colors">
+                {running ? <><Spin s={3} /><span>Running...</span></> : '▶ Run live'}
+              </button>
+              <span className="text-xs text-gray-400">
+                {!vaultKey ? 'Reveal key in Billing to run' : !doc?.tryPath ? 'Check docs for endpoint path' : 'Real API call · uses credits'}
+              </span>
             </div>
-          )}
+            {result && (
+              <div className={`rounded-xl p-3.5 border ${result.ok ? 'bg-green-50 border-green-100' : 'bg-red-50 border-red-100'}`}>
+                <div className={`text-xs font-semibold mb-2 ${result.ok ? 'text-green-700' : 'text-red-600'}`}>
+                  {result.ok ? `✓ ${result.status} OK` : `✗ ${result.status || 'Error'}`}
+                </div>
+                <pre className="text-xs text-gray-600 font-mono whitespace-pre-wrap overflow-x-auto max-h-48">{JSON.stringify(result.data || result.error, null, 2)}</pre>
+              </div>
+            )}
+            {!doc && (
+              <div className="mt-2 p-3 bg-blue-50 border border-blue-100 rounded-lg text-xs text-blue-700">
+                📖 Full endpoint documentation coming soon. Use the base path <code className="font-mono bg-blue-100 px-1 rounded">/proxy/{a.slug}/</code> with your preferred endpoint.
+              </div>
+            )}
+          </div>
         </div>
       )}
     </div>
