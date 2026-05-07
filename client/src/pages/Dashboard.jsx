@@ -100,20 +100,21 @@ const CAT_COLOR = { ai:'purple', data:'amber', dev:'orange', payments:'green', c
 
 function buildCode(slug, path, method = 'GET', lang = 'js', vaultKey = null) {
   const API_BASE = 'https://apivault-production-736c.up.railway.app'
-  const key = vaultKey || 'YOUR_VAULT_KEY'
+  // Always show masked key in code snippets for security
+  const displayKey = 'YOUR_VAULT_KEY'
   if (lang === 'js') return `const res = await fetch('${API_BASE}/proxy/${slug}${path}', {
-  headers: { 'x-vault-key': '${key}' }
+  headers: { 'x-vault-key': '${displayKey}' }
 })
 const data = await res.json()
 console.log(data)`
 
   if (lang === 'python') return `import requests
 res = requests.get('${API_BASE}/proxy/${slug}${path}',
-  headers={'x-vault-key': '${key}'})
+  headers={'x-vault-key': '${displayKey}'})
 print(res.json())`
 
   return `curl '${API_BASE}/proxy/${slug}${path}' \\
-  -H 'x-vault-key: ${key}'`
+  -H 'x-vault-key: ${displayKey}'`
 }
 
 // ─── API Card ─────────────────────────────────────────────────────────────
@@ -157,10 +158,11 @@ function APICard({ a, expanded, onExpand, vaultKey, onAddCredits }) {
         </button>
       )
     }
-    if (a.state === 'coming_soon') {
-      return <span className="text-xs text-gray-300 font-medium italic">Coming soon</span>
-    }
-    return <span className="text-xs text-gray-300 font-medium">Coming soon</span>
+    return (
+      <span className="text-xs text-gray-400 font-medium px-3 py-1.5 border border-gray-100 rounded-lg bg-gray-50">
+        Coming soon
+      </span>
+    )
   }
 
   return (
@@ -195,14 +197,9 @@ function APICard({ a, expanded, onExpand, vaultKey, onAddCredits }) {
               <span>You have ${parseFloat(a.credits_available||0).toFixed(2)} credits · This API costs ${a.user_price.toFixed(4)}/call · <button onClick={onAddCredits} className="underline font-semibold">Add credits</button></span>
             </div>
           )}
-          {a.state === 'coming_soon' && !a.ready && (
+          {a.state === 'coming_soon' && (
             <div className="mt-2 text-xs text-gray-400 bg-gray-50 rounded-lg px-2.5 py-1.5">
-              API is live but master key not yet configured by admin
-            </div>
-          )}
-          {a.state === 'coming_soon' && a.ready && (
-            <div className="mt-2 text-xs text-gray-400 bg-gray-50 rounded-lg px-2.5 py-1.5">
-              This API is being set up — check back soon
+              🔜 Coming soon — we're setting this up
             </div>
           )}
         </div>
@@ -237,7 +234,7 @@ function APICard({ a, expanded, onExpand, vaultKey, onAddCredits }) {
                 {running ? <><Spin s={3} /><span>Running...</span></> : '▶ Run live'}
               </button>
               <span className="text-xs text-gray-400">
-                {!vaultKey ? 'Reveal key in Billing to run' : !doc?.tryPath ? 'Check docs for endpoint path' : 'Real API call · uses credits'}
+                {!vaultKey ? 'Reveal key in Billing to run' : !doc?.tryPath ? 'Check docs for endpoint path' : a.user_price === 0 ? 'Free call · no credits used' : `$${a.user_price.toFixed(4)} per call`}
               </span>
             </div>
             {result && (
