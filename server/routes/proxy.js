@@ -16,49 +16,72 @@ proxyRoute.all('/:service/*', auth, async (req, res) => {
   if (limiter.isThrottled(user.id, service))  return res.status(429).json({ error: 'Rate limit: 60 calls/min per API' })
   if (limiter.isDailyCapped(user.id))          return res.status(429).json({ error: 'Daily call limit reached' })
 
-  // Resolve API config + decrypted master key
+  // Resolve API config + master key
   const api = await registry.resolve(service)
   if (!api) return res.status(404).json({ error: `API '${service}' not found or paused` })
 
-  // Pool circuit breaker
-  const poolOk = await pools.check(api.pool_id)
-  if (!poolOk) return res.status(503).json({ error: 'Service temporarily unavailable', retry_after: 300 })
+  const isFree = api.cost_per_call === 0 || api.cost_per_call === '0'
+
+  // Pool circuit breaker — skip for free APIs (no pool spend)
+  if (!isFree) {
+    const poolOk = await pools.check(api.pool_id)
+    if (!poolOk) return res.status(503).json({ error: 'Service temporarily unavailable', retry_after: 300 })
+  }
 
   // Calculate what to charge user
-  const charged = parseFloat((api.cost_per_call * (1 + api.markup / 100)).toFixed(8))
+  const charged = isFree
+    ? 0
+    : parseFloat((api.cost_per_call * (1 + api.markup / 100)).toFixed(8))
 
-  // Atomic credit deduct — BEFORE upstream call
-  const deducted = await billing.deduct(user.id, charged)
-  if (!deducted) return res.status(402).json({ error: 'Insufficient credits. Top up to continue.' })
+  // Deduct credits only for paid APIs
+  if (charged > 0) {
+    const deducted = await billing.deduct(user.id, charged)
+    if (!deducted) return res.status(402).json({ error: 'Insufficient credits. Top up to continue.' })
+  }
 
-  // Strip internal headers, build upstream request
+  // Build upstream request
   const upstreamPath = req.path.replace(`/${service}`, '') || '/'
   const queryString  = Object.keys(req.query).length
     ? '?' + new URLSearchParams(req.query).toString()
     : ''
   const upstreamUrl  = api.upstream_url.replace(/\/$/, '') + upstreamPath + queryString
 
-  // Different APIs use different auth header formats
-  const authHeader = api.auth_header || 'Authorization'
-  const authPrefix = api.auth_prefix || 'Bearer '
+  // Build headers — different APIs use different auth formats
   const headers = {
-    [authHeader]: `${authPrefix}${api.masterKey}`,
     'Content-Type': 'application/json',
   }
-  // NewsAPI uses X-Api-Key with no prefix
-  if (api.slug === 'newsapi') {
-    delete headers['Authorization']
-    headers['X-Api-Key'] = api.masterKey
+
+  const masterKey = api.masterKey
+
+  if (masterKey && masterKey !== 'no-key-required' && masterKey !== 'pending-setup') {
+    const authHeader = api.auth_header || 'Authorization'
+    const authPrefix = api.auth_prefix || 'Bearer '
+
+    // Per-API auth overrides
+    if (api.slug === 'newsapi') {
+      headers['X-Api-Key'] = masterKey
+    } else if (api.slug === 'openweather') {
+      // OpenWeather uses ?appid= query param — append it
+      const sep = upstreamUrl.includes('?') ? '&' : '?'
+      const finalUrl = upstreamUrl + sep + 'appid=' + masterKey
+      return proxyRequest(req, res, api, user, finalUrl, headers, charged, isFree)
+    } else {
+      headers[authHeader] = `${authPrefix}${masterKey}`
+    }
   }
-  // GitHub public API needs no auth for basic calls
-  if (api.masterKey === 'no-key-required') {
-    delete headers['Authorization']
-  }
-  // Forward safe user headers (e.g. Accept, Accept-Language)
+
+  // Forward safe user headers
   if (req.headers['accept'])          headers['Accept']          = req.headers['accept']
   if (req.headers['accept-language']) headers['Accept-Language'] = req.headers['accept-language']
 
+  return proxyRequest(req, res, api, user, upstreamUrl, headers, charged, isFree)
+})
+
+// ─── Shared proxy executor ────────────────────────────────────────────────
+
+async function proxyRequest(req, res, api, user, upstreamUrl, headers, charged, isFree) {
   let upstreamRes, upstreamData
+
   try {
     upstreamRes = await fetch(upstreamUrl, {
       method:  req.method,
@@ -68,24 +91,23 @@ proxyRoute.all('/:service/*', auth, async (req, res) => {
     })
     upstreamData = await upstreamRes.json().catch(() => ({}))
   } catch (err) {
-    // Network error or timeout — refund user
-    await billing.refund(user.id, charged, `timeout:${service}`)
+    // Network error or timeout — refund if we charged
+    if (charged > 0) await billing.refund(user.id, charged, `timeout:${api.slug}`)
     return res.status(504).json({ error: 'Upstream timeout or unreachable' })
   }
 
   // Upstream 5xx — our fault zone, refund user
   if (upstreamRes.status >= 500) {
-    await billing.refund(user.id, charged, `upstream_5xx:${service}`)
+    if (charged > 0) await billing.refund(user.id, charged, `upstream_5xx:${api.slug}`)
     await billing.log(user.id, api.id, api.cost_per_call, 0, upstreamRes.status)
     return res.status(502).json({ error: 'Upstream server error', detail: upstreamData })
   }
 
-  // Upstream 4xx — user error, no refund (they sent a bad request)
-  // Log, debit pool for what we spent, return the error as-is
+  // Log + debit pool
   await Promise.all([
     billing.log(user.id, api.id, api.cost_per_call, charged, upstreamRes.status),
-    pools.debit(api.pool_id, api.cost_per_call),
+    isFree ? Promise.resolve() : pools.debit(api.pool_id, api.cost_per_call),
   ])
 
   res.status(upstreamRes.status).json(upstreamData)
-})
+}
