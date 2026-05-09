@@ -1,6 +1,6 @@
 // server/routes/user.js
 import { Router }  from 'express'
-import { jwtAuth } from './auth.js'
+import { jwtAuth } from '../middleware/auth.js'
 import { db }      from '../db.js'
 
 export const userRoute = Router()
@@ -17,7 +17,7 @@ userRoute.get('/me', async (req, res) => {
 // GET /user/usage — last 50 calls with cost breakdown
 userRoute.get('/usage', async (req, res) => {
   const { data } = await db.from('usage_log')
-    .select('ts, charged, cost, profit, http_status, api_registry(name, category)')
+    .select('ts, charged, cost, http_status, api_registry(name, category)')
     .eq('user_id', req.user.id)
     .order('ts', { ascending: false })
     .limit(50)
@@ -35,7 +35,6 @@ userRoute.get('/usage/stats', async (req, res) => {
 
   const rows = data || []
 
-  // Group by day
   const byDay = {}
   rows.forEach(r => {
     const day = r.ts.split('T')[0]
@@ -44,7 +43,6 @@ userRoute.get('/usage/stats', async (req, res) => {
     byDay[day].spent += r.charged || 0
   })
 
-  // Top APIs
   const byAPI = {}
   rows.forEach(r => {
     const name = r.api_registry?.name || 'Unknown'
@@ -54,8 +52,8 @@ userRoute.get('/usage/stats', async (req, res) => {
   })
 
   res.json({
-    daily:   Object.values(byDay),
-    top_apis: Object.values(byAPI).sort((a, b) => b.calls - a.calls).slice(0, 5),
+    daily:       Object.values(byDay),
+    top_apis:    Object.values(byAPI).sort((a, b) => b.calls - a.calls).slice(0, 5),
     total_calls: rows.length,
     total_spent: rows.reduce((s, r) => s + (r.charged || 0), 0),
   })
@@ -67,11 +65,10 @@ userRoute.get('/apis', async (req, res) => {
   const credits = parseFloat(user?.credits || 0)
 
   const { data } = await db.from('api_registry')
-    .select('slug, name, category, cost_per_call, markup, billing_unit, status, description')
+    .select('slug, name, category, cost_per_call, markup, status, description')
     .eq('status', 'live')
     .order('name')
 
-  // Return APIs user can actually use
   const accessible = (data || []).filter(api => {
     const price = parseFloat((api.cost_per_call * (1 + api.markup / 100)).toFixed(6))
     return price === 0 || credits > 0
@@ -80,55 +77,48 @@ userRoute.get('/apis', async (req, res) => {
 })
 
 // GET /user/marketplace
-// Access model:
-// - paused                        → coming_soon (API not ready yet)
-// - live + no master key          → coming_soon (admin hasn't configured it yet)
-// - live + has key + free         → active (always usable)
-// - live + has key + paid + credits > 0  → active
-// - live + has key + paid + no credits   → needs_credits
 userRoute.get('/marketplace', async (req, res) => {
   const { data: user } = await db.from('users')
     .select('credits').eq('id', req.user.id).single()
   const credits = parseFloat(user?.credits || 0)
 
-  // Include master_key_ref so we can check if API is actually configured
   const { data: apis } = await db.from('api_registry')
-    .select('slug, name, category, cost_per_call, markup, billing_unit, status, description, master_key_ref')
+    .select('slug, name, category, cost_per_call, markup, status, description, master_key_ref')
     .in('status', ['live', 'paused'])
     .order('name')
 
   const result = (apis || []).map(api => {
-    const userPrice  = parseFloat((api.cost_per_call * (1 + api.markup / 100)).toFixed(6))
-    const isLive     = api.status === 'live'
-    const isFree     = userPrice === 0
-    const hasKey     = api.master_key_ref &&
-                       api.master_key_ref !== 'no-key-required' &&
-                       api.master_key_ref.length > 5
-    const freeNoKey  = isLive && isFree && api.master_key_ref === 'no-key-required'
+    const userPrice = parseFloat((api.cost_per_call * (1 + api.markup / 100)).toFixed(6))
+    const isLive    = api.status === 'live'
+    const isFree    = userPrice === 0
+    const hasKey    = api.master_key_ref &&
+                      api.master_key_ref !== 'no-key-required' &&
+                      api.master_key_ref !== 'pending-setup' &&
+                      api.master_key_ref.length > 5
+    const freeNoKey = isLive && isFree && api.master_key_ref === 'no-key-required'
 
     let state      = 'coming_soon'
     let has_access = false
-    let ready      = false // whether master key is configured
+    let ready      = false
 
     if (!isLive) {
-      state = 'coming_soon'   // paused by admin
+      state = 'coming_soon'
     } else if (!hasKey && !freeNoKey) {
-      state = 'coming_soon'   // live but no master key configured
+      state = 'coming_soon'
       ready = false
     } else if (isFree || freeNoKey) {
-      state = 'active'        // free API — always works
+      state      = 'active'
       has_access = true
-      ready = true
+      ready      = true
     } else if (credits > 0) {
-      state = 'active'        // paid API — user has credits
+      state      = 'active'
       has_access = true
-      ready = true
+      ready      = true
     } else {
-      state = 'needs_credits' // paid API — user needs to top up
-      ready = true            // API is ready, just needs credits
+      state = 'needs_credits'
+      ready = true
     }
 
-    // Don't expose master key to client
     const { master_key_ref, ...safeApi } = api
     return { ...safeApi, user_price: userPrice, has_access, state, ready, credits_available: credits }
   })
@@ -136,37 +126,68 @@ userRoute.get('/marketplace', async (req, res) => {
   res.json(result)
 })
 
-// POST /user/request-api — request access to a specific API
+// POST /user/request-api
+// Handles two cases:
+// 1. Known slug — request access to an existing API
+// 2. Unknown name — discovery request for an API not yet in the vault
 userRoute.post('/request-api', async (req, res) => {
   const { slug } = req.body
   if (!slug) return res.status(400).json({ error: 'slug required' })
 
-  // Check API exists
+  const { data: user } = await db.from('users').select('email').eq('id', req.user.id).single()
+
+  // Check if this is a known API in the registry
+  const cleanSlug = slug.toLowerCase().trim().replace(/\s+/g, '-')
   const { data: api } = await db.from('api_registry')
-    .select('slug, name').eq('slug', slug).single()
-  if (!api) return res.status(404).json({ error: 'API not found' })
+    .select('slug, name').eq('slug', cleanSlug).maybeSingle()
 
-  // Check not already requested
-  const { data: existing } = await db.from('api_requests')
-    .select('id, status').eq('slug', slug).eq('requested_by', req.user.id).maybeSingle()
-  if (existing) return res.json({ ok: true, status: existing.status, already: true })
+  if (api) {
+    // Known API — check not already requested
+    const { data: existing } = await db.from('api_requests')
+      .select('id, status').eq('slug', cleanSlug).eq('requested_by', req.user.id).maybeSingle()
+    if (existing) return res.json({ ok: true, status: existing.status, already: true })
 
-  // Create request
+    await db.from('api_requests').insert({
+      slug:         cleanSlug,
+      name:         api.name,
+      requested_by: req.user.id,
+      status:       'pending',
+    })
+
+    await db.from('admin_alerts').insert({
+      type:    'api_requested',
+      message: `${user.email} requested access to ${api.name}`,
+    })
+
+    return res.json({ ok: true, status: 'pending' })
+  }
+
+  // Unknown API — discovery request
+  // Store as a discovery request so admin can review and add it
+  const { data: existingDiscovery } = await db.from('api_requests')
+    .select('id, status')
+    .eq('slug', cleanSlug)
+    .eq('requested_by', req.user.id)
+    .maybeSingle()
+
+  if (existingDiscovery) {
+    return res.json({ ok: true, status: existingDiscovery.status, already: true })
+  }
+
   await db.from('api_requests').insert({
-    slug,
-    name:         api.name,
+    slug:         cleanSlug,
+    name:         slug,           // use the raw search term as the name
     requested_by: req.user.id,
     status:       'pending',
+    api_category: 'discovery',   // flag as a discovery request
   })
 
-  // Alert admin
-  const { data: user } = await db.from('users').select('email').eq('id', req.user.id).single()
   await db.from('admin_alerts').insert({
     type:    'api_requested',
-    message: `${user.email} requested access to ${api.name}`,
+    message: `${user.email} requested a new API: "${slug}" — not yet in the vault`,
   })
 
-  res.json({ ok: true, status: 'pending' })
+  res.json({ ok: true, status: 'pending', discovery: true })
 })
 
 // GET /user/key — masked vault key

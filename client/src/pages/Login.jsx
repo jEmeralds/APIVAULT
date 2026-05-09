@@ -1,22 +1,23 @@
 // client/src/pages/Login.jsx
 import { useState, useEffect } from 'react'
-import { useNavigate } from 'react-router-dom'
+import { useNavigate, useSearchParams } from 'react-router-dom'
 import { api } from '../lib/api.js'
 
 const BASE = import.meta.env.VITE_API_URL || ''
 
 export function Login() {
-  const [tab, setTab]           = useState('signin')
+  const [searchParams]          = useSearchParams()
+  const [tab, setTab]           = useState(searchParams.get('mode') === 'signup' ? 'signup' : 'signin')
   const [email, setEmail]       = useState('')
   const [password, setPassword] = useState('')
   const [confirm, setConfirm]   = useState('')
   const [plan, setPlan]         = useState('dev')
-  const [msg, setMsg]           = useState(null)   // { ok, text }
+  const [msg, setMsg]           = useState(null)
   const [loading, setLoading]   = useState(false)
-  const [stage, setStage]       = useState('form') // form | sent | verified | error
+  const [stage, setStage]       = useState('form')
   const nav = useNavigate()
 
-  // Handle email verification redirect: /app?token=xxx or /?token=xxx
+  // Handle email verification redirect
   useEffect(() => {
     const params = new URLSearchParams(window.location.search)
     const token  = params.get('token')
@@ -66,7 +67,6 @@ export function Login() {
     e.preventDefault()
     if (!email || !password || !confirm) return
 
-    // Client-side checks before hitting server
     if (password !== confirm) { setMsg({ ok: false, text: 'Passwords do not match' }); return }
     if (password.length < 8)  { setMsg({ ok: false, text: 'Password must be at least 8 characters' }); return }
     if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) { setMsg({ ok: false, text: 'Enter a valid email address' }); return }
@@ -77,12 +77,7 @@ export function Login() {
       const res = await fetch(`${BASE}/auth/register`, {
         method:  'POST',
         headers: { 'Content-Type': 'application/json' },
-        body:    JSON.stringify({
-          email,
-          password,
-          plan,
-          honeypot: '',  // always empty for real users — bots fill this
-        }),
+        body:    JSON.stringify({ email, password, plan, honeypot: '' }),
       })
       const data = await res.json()
 
@@ -105,8 +100,7 @@ export function Login() {
   if (stage === 'verified') return (
     <FullPage>
       <StatusCard
-        icon="✓"
-        iconColor="bg-green-500"
+        icon="✓" iconColor="bg-green-500"
         title="Email verified"
         body="Your email has been verified. Your account is now pending admin approval. You will receive an email once approved."
         action={{ label: 'Back to sign in', onClick: () => { setStage('form'); setTab('signin') } }}
@@ -117,8 +111,7 @@ export function Login() {
   if (stage === 'error') return (
     <FullPage>
       <StatusCard
-        icon="×"
-        iconColor="bg-red-500"
+        icon="×" iconColor="bg-red-500"
         title="Verification failed"
         body={msg?.text || 'The verification link is invalid or has expired.'}
         action={{ label: 'Back to sign in', onClick: () => { setStage('form'); setTab('signin') } }}
@@ -129,8 +122,7 @@ export function Login() {
   if (stage === 'sent') return (
     <FullPage>
       <StatusCard
-        icon="✉"
-        iconColor="bg-gray-900"
+        icon="✉" iconColor="bg-gray-900"
         title="Check your email"
         body={`We sent a verification link to ${email}. Click the link to verify your address. After verification, an admin will review and approve your account.`}
         sub="Didn't get it? Check your spam folder."
@@ -138,8 +130,6 @@ export function Login() {
       />
     </FullPage>
   )
-
-  // ── Main form ────────────────────────────────────────────────────────────
 
   return (
     <div className="min-h-screen bg-white flex">
@@ -158,9 +148,9 @@ export function Login() {
           </p>
           <div className="space-y-3">
             {[
-              { n: '10×',  l: 'Lower cost per API call' },
+              { n: '35+',  l: 'Free APIs available now' },
               { n: '30s',  l: 'To integrate any API' },
-              { n: '100%', l: 'Uptime with pool failover' },
+              { n: '1',    l: 'Key for every API' },
             ].map(s => (
               <div key={s.n} className="flex items-center gap-3">
                 <span className="text-white font-semibold text-sm w-12">{s.n}</span>
@@ -173,7 +163,7 @@ export function Login() {
 
       {/* Form panel */}
       <div className="flex-1 flex items-center justify-center px-5 py-8 sm:px-6">
-        <div className="w-full max-w-[360px] sm:max-w-[360px]">
+        <div className="w-full max-w-[360px]">
 
           {/* Tab switcher */}
           <div className="flex gap-1 p-1 bg-gray-100 rounded-xl mb-8">
@@ -209,13 +199,21 @@ export function Login() {
                   hover:bg-gray-800 disabled:opacity-40 disabled:cursor-not-allowed transition-all mt-1">
                 {loading ? 'Signing in...' : 'Continue'}
               </button>
+
+              <p className="text-xs text-gray-400 text-center pt-1">
+                No account?{' '}
+                <button type="button" onClick={() => { setTab('signup'); reset() }}
+                  className="text-gray-900 font-medium underline underline-offset-2">
+                  Create one free
+                </button>
+              </p>
             </form>
           )}
 
           {/* Sign up form */}
           {tab === 'signup' && (
             <form onSubmit={signUp} className="space-y-3">
-              {/* Honeypot — hidden from real users */}
+              {/* Honeypot */}
               <input name="website" type="text" style={{ display: 'none' }} tabIndex={-1} autoComplete="off" />
 
               <Field label="Email">
@@ -252,6 +250,13 @@ export function Login() {
                 <p className="text-xs text-gray-300 text-center">
                   Email verification required · Admin approval needed
                 </p>
+                <p className="text-xs text-gray-400 text-center">
+                  Already have an account?{' '}
+                  <button type="button" onClick={() => { setTab('signin'); reset() }}
+                    className="text-gray-900 font-medium underline underline-offset-2">
+                    Sign in
+                  </button>
+                </p>
               </div>
             </form>
           )}
@@ -261,7 +266,7 @@ export function Login() {
   )
 }
 
-// ─── Shared UI components ─────────────────────────────────────────────────
+// ─── Shared UI ────────────────────────────────────────────────────────────
 
 function Field({ label, children }) {
   return (
@@ -294,7 +299,7 @@ function Alert({ ok, text }) {
 function FullPage({ children }) {
   return (
     <div className="min-h-screen bg-white flex items-center justify-center px-6">
-      <div className="w-full max-w-[360px] sm:max-w-[360px]">{children}</div>
+      <div className="w-full max-w-[360px]">{children}</div>
     </div>
   )
 }

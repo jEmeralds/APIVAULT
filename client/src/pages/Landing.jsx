@@ -3,7 +3,9 @@ import { useEffect, useState, useRef } from 'react'
 import { useNavigate } from 'react-router-dom'
 
 const BASE = 'https://apivault-production-736c.up.railway.app'
-const VAULT_KEY = 'a27907ec-94cd-47f9-8b8f-458120a11154'
+// Demo key for landing page live calls — read-only, low-credit account
+// This is intentionally a public demo key, not a user's real key
+const DEMO_KEY = import.meta.env.VITE_DEMO_VAULT_KEY || 'a27907ec-94cd-47f9-8b8f-458120a11154'
 
 // ─── Demo Steps ───────────────────────────────────────────────────────────
 
@@ -108,21 +110,38 @@ const [news, rates, country] = await Promise.all([
   },
 ]
 
+// ── Updated API list reflecting actual registry ───────────────────────────
 const APIS = [
-  { name: 'Exchange Rates', cat: 'data',     price: 'Free',    live: true  },
-  { name: 'REST Countries', cat: 'data',     price: 'Free',    live: true  },
-  { name: 'IP Geolocation', cat: 'data',     price: 'Free',    live: true  },
-  { name: 'OpenWeather',    cat: 'data',     price: 'Free',    live: true  },
-  { name: 'NewsAPI',        cat: 'data',     price: '$0.002',  live: true  },
-  { name: 'GitHub API',     cat: 'dev',      price: 'Free',    live: true  },
-  { name: 'Dictionary API', cat: 'dev',      price: 'Free',    live: true  },
-  { name: 'JokeAPI',        cat: 'dev',      price: 'Free',    live: true  },
-  { name: 'GPT-4o',         cat: 'ai',       price: '$0.008',  live: false },
-  { name: 'HeyGen Video',   cat: 'ai',       price: '$0.600',  live: false },
-  { name: 'Grok Image',     cat: 'ai',       price: '$0.120',  live: false },
-  { name: 'Stripe',         cat: 'payments', price: 'Free',    live: false },
-  { name: 'M-Pesa',         cat: 'payments', price: 'Free',    live: false },
-  { name: 'Twilio SMS',     cat: 'comms',    price: '$0.009',  live: false },
+  // Free & live
+  { name: 'Exchange Rates',   cat: 'finance',  price: 'Free',   live: true  },
+  { name: 'REST Countries',   cat: 'data',     price: 'Free',   live: true  },
+  { name: 'IP Geolocation',   cat: 'data',     price: 'Free',   live: true  },
+  { name: 'Open Meteo',       cat: 'geo',      price: 'Free',   live: true  },
+  { name: 'NewsAPI',          cat: 'data',     price: '$0.001', live: true  },
+  { name: 'OpenWeather',      cat: 'data',     price: '$0.001', live: true  },
+  { name: 'GitHub API',       cat: 'dev',      price: 'Free',   live: true  },
+  { name: 'Dictionary API',   cat: 'dev',      price: 'Free',   live: true  },
+  { name: 'JokeAPI',          cat: 'dev',      price: 'Free',   live: true  },
+  { name: 'Chuck Norris',     cat: 'dev',      price: 'Free',   live: true  },
+  { name: 'DummyJSON',        cat: 'dev',      price: 'Free',   live: true  },
+  { name: 'PokéAPI',          cat: 'data',     price: 'Free',   live: true  },
+  { name: 'SpaceX Data',      cat: 'data',     price: 'Free',   live: true  },
+  { name: 'CoinGecko',        cat: 'finance',  price: 'Free',   live: true  },
+  { name: 'Frankfurter Forex',cat: 'finance',  price: 'Free',   live: true  },
+  { name: 'NASA Open Data',   cat: 'data',     price: 'Free',   live: true  },
+  { name: 'Random User',      cat: 'data',     price: 'Free',   live: true  },
+  { name: 'Open FDA',         cat: 'health',   price: 'Free',   live: true  },
+  { name: 'iTunes Search',    cat: 'media',    price: 'Free',   live: true  },
+  // Coming soon
+  { name: 'GPT-4o',           cat: 'ai',       price: '$0.008', live: false },
+  { name: 'Claude (Anthropic)',cat: 'ai',       price: '$0.005', live: false },
+  { name: 'Gemini Flash',     cat: 'ai',       price: '$0.002', live: false },
+  { name: 'HeyGen Video',     cat: 'ai',       price: '$0.600', live: false },
+  { name: 'ElevenLabs Voice', cat: 'ai',       price: '$0.045', live: false },
+  { name: "Africa's Talking", cat: 'comms',    price: '$0.005', live: false },
+  { name: 'Twilio SMS',       cat: 'comms',    price: '$0.008', live: false },
+  { name: 'M-Pesa',           cat: 'payments', price: 'Free',   live: false },
+  { name: 'Flutterwave',      cat: 'payments', price: '$0.010', live: false },
 ]
 
 const CAT = {
@@ -131,6 +150,10 @@ const CAT = {
   dev:      { bg: 'rgba(251,146,60,0.15)',  text: '#fb923c' },
   payments: { bg: 'rgba(52,211,153,0.15)',  text: '#34d399' },
   comms:    { bg: 'rgba(96,165,250,0.15)',  text: '#60a5fa' },
+  finance:  { bg: 'rgba(52,211,153,0.15)',  text: '#34d399' },
+  geo:      { bg: 'rgba(45,212,191,0.15)',  text: '#2dd4bf' },
+  health:   { bg: 'rgba(251,113,133,0.15)', text: '#fb7185' },
+  media:    { bg: 'rgba(232,121,249,0.15)', text: '#e879f9' },
 }
 
 const FEATURES = [
@@ -220,7 +243,7 @@ function KeyVisual() {
           <div className="text-xs text-white/40 mb-1">Your vault key</div>
           <div className="flex items-center gap-2">
             <div className="flex-1 font-mono text-xs text-white/60 truncate">
-              {revealed ? 'sk-vault-a27907ec-94cd-47f9...' : 'sk-vault-••••••••••••••••••••'}
+              {revealed ? 'sk-vault-xxxxxxxx-xxxx-xxxx...' : 'sk-vault-••••••••••••••••••••'}
             </div>
             <button onClick={() => setRevealed(true)}
               className="bg-[#34d399] text-[#080808] text-xs px-2.5 py-1.5 rounded-lg font-bold whitespace-nowrap flex-shrink-0">
@@ -295,26 +318,28 @@ function CopyBtn({ text }) {
 
 export function Landing() {
   const nav = useNavigate()
-  const [step, setStep]       = useState(1)
-  const [results, setResults] = useState({})
-  const [loading, setLoading] = useState({})
-  const [done, setDone]       = useState({})
+  const [step, setStep]         = useState(1)
+  const [results, setResults]   = useState({})
+  const [loading, setLoading]   = useState({})
+  const [done, setDone]         = useState({})
   const [liveData, setLiveData] = useState({})
 
-  // No redirect — logged-in users can visit landing page freely
   const isLoggedIn = !!localStorage.getItem('token')
   const userRole   = localStorage.getItem('role')
+
+  const liveCount = APIS.filter(a => a.live).length
+  const totalCount = APIS.length
 
   // Auto-run background live cards
   useEffect(() => {
     const demos = [
-      { id: 'rates',   url: '/proxy/exchangerates/latest/KES',           parse: d => d?.rates ? `1 KES = $${d.rates.USD?.toFixed(5)} USD` : null },
+      { id: 'rates',   url: '/proxy/exchangerates/latest/KES',            parse: d => d?.rates ? `1 KES = $${d.rates.USD?.toFixed(5)} USD` : null },
       { id: 'joke',    url: '/proxy/jokeapi/joke/Programming?type=single', parse: d => d?.joke?.slice(0, 100) || null },
-      { id: 'country', url: '/proxy/restcountries/name/kenya',            parse: d => { const k = Array.isArray(d) ? d[0] : d; return k ? `${k.flag || '🇰🇪'} ${k.name?.common} · Pop ${(k.population/1e6).toFixed(1)}M` : null } },
+      { id: 'country', url: '/proxy/restcountries/name/kenya',             parse: d => { const k = Array.isArray(d) ? d[0] : d; return k ? `${k.flag || '🇰🇪'} ${k.name?.common} · Pop ${(k.population/1e6).toFixed(1)}M` : null } },
     ]
     demos.forEach(async d => {
       try {
-        const res  = await fetch(`${BASE}${d.url}`, { headers: { 'x-vault-key': VAULT_KEY } })
+        const res  = await fetch(`${BASE}${d.url}`, { headers: { 'x-vault-key': DEMO_KEY } })
         const data = await res.json()
         const val  = d.parse(data)
         if (val) setLiveData(l => ({ ...l, [d.id]: val }))
@@ -326,8 +351,8 @@ export function Landing() {
     if (s.type !== 'live') return
     setLoading(l => ({ ...l, [s.id]: true }))
     try {
-      const res  = await fetch(`${BASE}${s.endpoint}`, { headers: { 'x-vault-key': VAULT_KEY } })
-      const data = await res.json()
+      const res      = await fetch(`${BASE}${s.endpoint}`, { headers: { 'x-vault-key': DEMO_KEY } })
+      const data     = await res.json()
       const rendered = s.render(data)
       setResults(r => ({ ...r, [s.id]: rendered }))
       setDone(d => ({ ...d, [s.id]: true }))
@@ -345,6 +370,11 @@ export function Landing() {
       setStep(s => Math.min(STEPS.length, s + 1))
     }
   }
+
+  // Navigate to login with signup tab pre-selected
+  function goSignup() { nav('/login?mode=signup') }
+  function goLogin()  { nav('/login') }
+  function goDash()   { nav(userRole === 'admin' ? '/admin' : '/app') }
 
   const cur = STEPS.find(s => s.id === step)
 
@@ -379,11 +409,7 @@ export function Landing() {
             <span className="mono text-[10px] text-white/20 border border-white/10 px-1.5 py-0.5 rounded ml-0.5">beta</span>
           </div>
           <div className="flex items-center gap-1 overflow-x-auto">
-            {[
-              ['Demo', '#demo'],
-              ['Features', '#features'],
-              ['APIs', '#apis'],
-            ].map(([label, href]) => (
+            {[['Demo', '#demo'], ['Features', '#features'], ['APIs', '#apis']].map(([label, href]) => (
               <button key={label}
                 onClick={() => document.getElementById(href.slice(1))?.scrollIntoView({ behavior: 'smooth' })}
                 className="text-xs text-white/35 hover:text-white/70 transition-colors px-3 py-1.5 rounded-lg hover:bg-white/5 hidden sm:block">
@@ -392,17 +418,17 @@ export function Landing() {
             ))}
             <div className="w-px h-4 bg-white/10 mx-1 hidden sm:block" />
             {isLoggedIn ? (
-              <button onClick={() => nav(userRole === 'admin' ? '/admin' : '/app')}
+              <button onClick={goDash}
                 className="text-xs bg-[#34d399] text-[#050505] px-4 py-2 rounded-lg font-bold hover:bg-[#6ee7b7] transition-colors ml-1">
                 Go to dashboard →
               </button>
             ) : (
               <>
-                <button onClick={() => nav('/login')}
+                <button onClick={goLogin}
                   className="text-xs text-white/50 hover:text-white px-3 py-1.5 transition-colors">
                   Sign in
                 </button>
-                <button onClick={() => nav('/login')}
+                <button onClick={goSignup}
                   className="text-xs bg-[#34d399] text-[#050505] px-4 py-2 rounded-lg font-bold hover:bg-[#6ee7b7] transition-colors ml-1">
                   Get started →
                 </button>
@@ -416,7 +442,7 @@ export function Landing() {
       <section className="grid-bg pt-20 pb-16 px-5 max-w-6xl mx-auto">
         <div className="fade-up d1 inline-flex items-center gap-2 border border-[#34d399]/25 bg-[#34d399]/6 rounded-full px-3.5 py-1.5 mb-7">
           <div className="w-1.5 h-1.5 rounded-full bg-[#34d399] animate-pulse" />
-          <span className="mono text-xs text-[#34d399]">{APIS.filter(a => a.live).length} APIs live · gateway operational</span>
+          <span className="mono text-xs text-[#34d399]">{liveCount} APIs live · gateway operational</span>
         </div>
 
         <h1 className="fade-up d2 text-5xl sm:text-6xl lg:text-[72px] font-bold leading-[1.04] tracking-tight mb-6 max-w-4xl">
@@ -428,7 +454,6 @@ export function Landing() {
           APIvault is a shared API gateway. Get <strong className="text-white/80">one vault key</strong> that unlocks every API — NewsAPI, Exchange Rates, GitHub, OpenWeather, and more. Pay per call. No subscriptions.
         </p>
 
-        {/* Pain → solution */}
         <div className="fade-up d3 flex flex-col gap-1.5 mb-10">
           {['NewsAPI account + key', 'OpenWeather account + key', 'Exchange Rates account + key'].map(item => (
             <div key={item} className="inline-flex items-center gap-3 w-fit">
@@ -443,7 +468,7 @@ export function Landing() {
         </div>
 
         <div className="fade-up d4 flex flex-wrap gap-3">
-          <button onClick={() => nav('/login')}
+          <button onClick={goSignup}
             className="bg-[#34d399] text-[#050505] px-6 py-3 rounded-xl font-bold hover:bg-[#6ee7b7] transition-all text-sm glow">
             Start free — no card needed →
           </button>
@@ -484,8 +509,6 @@ export function Landing() {
         </p>
 
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-5">
-
-          {/* Step list */}
           <div className="lg:col-span-4">
             <div className="space-y-2">
               {STEPS.map(s => (
@@ -494,10 +517,8 @@ export function Landing() {
                     ${step === s.id ? 'active border-[#34d399]/35' : done[s.id] ? 'completed border-[#34d399]/15' : 'border-white/6 hover:border-white/15'}`}>
                   <div className="flex items-center gap-3">
                     <div className={`w-7 h-7 rounded-full flex items-center justify-center text-xs font-bold flex-shrink-0 transition-all ${
-                      done[s.id]
-                        ? 'bg-[#34d399] text-[#050505]'
-                        : step === s.id
-                        ? 'bg-[#34d399] text-[#050505]'
+                      done[s.id] ? 'bg-[#34d399] text-[#050505]'
+                        : step === s.id ? 'bg-[#34d399] text-[#050505]'
                         : 'bg-white/6 text-white/25'
                     }`}>
                       {done[s.id] ? '✓' : s.id}
@@ -514,18 +535,14 @@ export function Landing() {
                 </button>
               ))}
             </div>
-
-            <button onClick={() => nav(isLoggedIn ? (userRole === 'admin' ? '/admin' : '/app') : '/login')}
+            <button onClick={isLoggedIn ? goDash : goSignup}
               className="w-full mt-4 py-3 bg-[#34d399] text-[#050505] rounded-xl font-bold text-sm hover:bg-[#6ee7b7] transition-colors">
               {isLoggedIn ? 'Go to dashboard →' : 'Start building free →'}
             </button>
           </div>
 
-          {/* Step detail */}
           <div className="lg:col-span-8">
             <div className="border border-white/8 rounded-2xl overflow-hidden h-full">
-
-              {/* Header */}
               <div className="px-5 py-4 border-b border-white/6 bg-white/[0.015]">
                 <div className="flex items-center gap-2 mb-1">
                   <div className="mono text-[10px] text-white/25">Step {cur.id} of {STEPS.length}</div>
@@ -542,7 +559,6 @@ export function Landing() {
                 <div className="text-sm text-white/45 mt-1 leading-relaxed">{cur.desc}</div>
               </div>
 
-              {/* Visual area */}
               <div className="p-5 border-b border-white/6 bg-[#0a0a0a]">
                 {cur.type === 'visual' && cur.visual === 'signup' && <SignupVisual />}
                 {cur.type === 'visual' && cur.visual === 'key'    && <KeyVisual />}
@@ -557,7 +573,6 @@ export function Landing() {
                         : <><span>▶</span><span>Run — make live API call</span></>
                       }
                     </button>
-
                     {results[cur.id] ? (
                       <div className="bg-[#34d399]/5 border border-[#34d399]/20 rounded-xl p-4">
                         <div className="mono text-xs text-[#34d399] font-semibold mb-3 flex items-center gap-2">
@@ -583,7 +598,6 @@ export function Landing() {
                 )}
               </div>
 
-              {/* Code */}
               {cur.code && (
                 <div className="border-b border-white/6">
                   <div className="px-5 py-2.5 flex items-center justify-between bg-white/[0.01]">
@@ -596,7 +610,6 @@ export function Landing() {
                 </div>
               )}
 
-              {/* Nav */}
               <div className="px-5 py-3.5 flex items-center justify-between bg-white/[0.01]">
                 <button onClick={() => setStep(s => Math.max(1, s - 1))} disabled={step === 1}
                   className="px-4 py-2 border border-white/8 text-white/35 text-xs rounded-lg hover:border-white/25 hover:text-white/60 disabled:opacity-20 transition-all">
@@ -608,7 +621,7 @@ export function Landing() {
                     {cur.type === 'live' && !done[cur.id] ? 'Run & continue →' : 'Next step →'}
                   </button>
                 ) : (
-                  <button onClick={() => nav(isLoggedIn ? (userRole === 'admin' ? '/admin' : '/app') : '/login')}
+                  <button onClick={isLoggedIn ? goDash : goSignup}
                     className="px-5 py-2 bg-[#34d399] text-[#050505] text-xs rounded-lg font-bold hover:bg-[#6ee7b7] transition-colors">
                     {isLoggedIn ? 'Dashboard →' : 'Start building →'}
                   </button>
@@ -626,7 +639,6 @@ export function Landing() {
         <p className="text-white/40 mb-12 max-w-xl text-base">
           Built specifically for developers who want to move fast without getting buried in API account management.
         </p>
-
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
           {FEATURES.map((f, i) => (
             <div key={i} className="border border-white/6 rounded-2xl p-6 hover:border-white/15 transition-all group">
@@ -645,27 +657,11 @@ export function Landing() {
       <section className="py-20 px-5 max-w-6xl mx-auto border-t border-white/5">
         <div className="mono text-xs text-white/25 mb-2">// real examples</div>
         <h2 className="text-3xl font-bold mb-10 tracking-tight">What developers build with APIvault</h2>
-
         <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
           {[
-            {
-              icon: '🏦',
-              title: 'Fintech app',
-              desc: 'Live exchange rates + SMS alerts + news feed. Three APIs, one key, one account.',
-              apis: ['Exchange Rates', 'Twilio SMS', 'NewsAPI'],
-            },
-            {
-              icon: '🚚',
-              title: 'Logistics platform',
-              desc: 'Weather forecasts + country data + IP location detection for delivery routing.',
-              apis: ['OpenWeather', 'REST Countries', 'IP Geolocation'],
-            },
-            {
-              icon: '📱',
-              title: 'Developer tool',
-              desc: 'Dictionary lookups + GitHub search + fun content for productivity apps.',
-              apis: ['Dictionary API', 'GitHub API', 'JokeAPI'],
-            },
+            { icon: '🏦', title: 'Fintech app', desc: 'Live exchange rates + SMS alerts + news feed. Three APIs, one key, one account.', apis: ['Exchange Rates', 'Africa\'s Talking', 'NewsAPI'] },
+            { icon: '🚚', title: 'Logistics platform', desc: 'Weather forecasts + country data + IP location detection for delivery routing.', apis: ['Open Meteo', 'REST Countries', 'IP Geolocation'] },
+            { icon: '📱', title: 'Developer tool', desc: 'Dictionary lookups + GitHub search + fun content for productivity apps.', apis: ['Dictionary API', 'GitHub API', 'JokeAPI'] },
           ].map(u => (
             <div key={u.title} className="border border-white/6 rounded-2xl p-6 hover:border-white/15 transition-all">
               <div className="text-3xl mb-3">{u.icon}</div>
@@ -686,9 +682,8 @@ export function Landing() {
         <div className="mono text-xs text-white/25 mb-2">// api registry</div>
         <h2 className="text-3xl font-bold mb-3 tracking-tight">Available APIs</h2>
         <p className="text-white/40 mb-8 max-w-xl">
-          {APIS.filter(a => a.live).length} APIs live today with more being added regularly. All accessible with the same vault key.
+          {liveCount} APIs live today · {totalCount - liveCount} coming soon. All accessible with the same vault key.
         </p>
-
         <div className="border border-white/8 rounded-2xl overflow-hidden">
           <div className="grid grid-cols-4 px-5 py-3 border-b border-white/5 bg-white/[0.015]">
             {['API', 'Category', 'Price / call', 'Status'].map(h => (
@@ -768,7 +763,7 @@ curl 'https://apivault-production-736c.up.railway.app\\
             Free APIs work immediately. No credit card. Sign up and make your first API call in under 5 minutes.
           </p>
           <div className="flex flex-col sm:flex-row gap-3 justify-center">
-            <button onClick={() => nav(isLoggedIn ? (userRole === 'admin' ? '/admin' : '/app') : '/login')}
+            <button onClick={isLoggedIn ? goDash : goSignup}
               className="bg-[#34d399] text-[#050505] px-8 py-4 rounded-xl font-bold hover:bg-[#6ee7b7] transition-all text-base glow">
               {isLoggedIn ? 'Go to dashboard →' : 'Create free account →'}
             </button>
@@ -798,7 +793,7 @@ curl 'https://apivault-production-736c.up.railway.app\\
                 {l}
               </button>
             ))}
-            <button onClick={() => nav('/login')} className="mono text-xs text-white/20 hover:text-white/50 transition-colors">Sign in</button>
+            <button onClick={goLogin} className="mono text-xs text-white/20 hover:text-white/50 transition-colors">Sign in</button>
           </div>
         </div>
       </footer>

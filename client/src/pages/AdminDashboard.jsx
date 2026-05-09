@@ -827,53 +827,101 @@ function Requests({ d, onRefresh }) {
     <div>
       <div className="flex items-center justify-between mb-5">
         <div>
-          <h2 className="font-semibold text-gray-900">API Access Requests</h2>
+          <h2 className="font-semibold text-gray-900">API Requests</h2>
           <p className="text-xs text-gray-400 mt-0.5">{pending.length} pending · {resolved.length} resolved</p>
         </div>
       </div>
 
-      {pending.length > 0 && (
-        <div className="mb-6">
-          <div className="text-xs font-medium text-blue-600 uppercase tracking-wide mb-3">
-            Pending — {pending.length}
-          </div>
-          <div className="border border-blue-100 rounded-xl overflow-hidden">
-            <table className="w-full text-sm">
-              <thead>
-                <tr className="border-b border-blue-100 bg-blue-50">
-                  <th className="text-left text-xs font-medium text-blue-500 px-4 py-3">User</th>
-                  <th className="text-left text-xs font-medium text-blue-500 px-4 py-3">API</th>
-                  <th className="text-left text-xs font-medium text-blue-500 px-4 py-3">Category</th>
-                  <th className="text-left text-xs font-medium text-blue-500 px-4 py-3">Requested</th>
-                  <th className="text-left text-xs font-medium text-blue-500 px-4 py-3">Actions</th>
-                </tr>
-              </thead>
-              <tbody>
-                {pending.map(r => (
-                  <tr key={r.id} className="border-b border-blue-50 last:border-0 bg-white hover:bg-blue-50 transition-colors">
-                    <td className="px-4 py-3 font-medium text-gray-900 text-xs">{r.email}</td>
-                    <td className="px-4 py-3 text-sm font-medium text-gray-900">{r.name}</td>
-                    <td className="px-4 py-3"><Badge color="blue">{r.api_category}</Badge></td>
-                    <td className="px-4 py-3 text-xs text-gray-400">{new Date(r.ts).toLocaleDateString()}</td>
-                    <td className="px-4 py-3">
-                      <div className="flex gap-2">
-                        <button onClick={() => grant(r)} disabled={saving === r.id}
-                          className="px-3 py-1.5 bg-green-600 text-white text-xs rounded-lg hover:bg-green-700 transition-colors font-medium disabled:opacity-50">
-                          Grant
-                        </button>
-                        <button onClick={() => deny(r)} disabled={saving === r.id}
-                          className="px-3 py-1.5 border border-red-200 text-red-600 text-xs rounded-lg hover:bg-red-50 transition-colors">
-                          Deny
-                        </button>
-                      </div>
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        </div>
-      )}
+      {pending.length > 0 && (() => {
+        const accessReqs    = pending.filter(r => r.api_category !== 'discovery')
+        const discoveryReqs = pending.filter(r => r.api_category === 'discovery')
+        return (
+          <>
+            {/* Discovery requests — users asking for APIs not yet in vault */}
+            {discoveryReqs.length > 0 && (
+              <div className="mb-6">
+                <div className="flex items-center gap-2 mb-3">
+                  <span className="text-xs font-medium text-purple-600 uppercase tracking-wide">New API requests</span>
+                  <span className="bg-purple-100 text-purple-700 text-xs px-2 py-0.5 rounded-full font-medium">{discoveryReqs.length}</span>
+                </div>
+                <div className="border border-purple-100 rounded-xl overflow-hidden">
+                  <table className="w-full text-sm">
+                    <thead>
+                      <tr className="border-b border-purple-100 bg-purple-50">
+                        <th className="text-left text-xs font-medium text-purple-500 px-4 py-3">User</th>
+                        <th className="text-left text-xs font-medium text-purple-500 px-4 py-3">Requested API</th>
+                        <th className="text-left text-xs font-medium text-purple-500 px-4 py-3">Date</th>
+                        <th className="text-left text-xs font-medium text-purple-500 px-4 py-3">Action</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {discoveryReqs.map(r => (
+                        <tr key={r.id} className="border-b border-purple-50 last:border-0 bg-white hover:bg-purple-50 transition-colors">
+                          <td className="px-4 py-3 text-xs text-gray-600">{r.email}</td>
+                          <td className="px-4 py-3 font-medium text-gray-900">{r.name}</td>
+                          <td className="px-4 py-3 text-xs text-gray-400">{new Date(r.ts).toLocaleDateString()}</td>
+                          <td className="px-4 py-3">
+                            <button onClick={() => deny(r)} disabled={saving === r.id}
+                              className="px-3 py-1.5 border border-gray-200 text-gray-500 text-xs rounded-lg hover:bg-gray-50 transition-colors">
+                              Dismiss
+                            </button>
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+                <p className="text-xs text-gray-400 mt-2 px-1">Add these via Admin → APIs → + Add API when ready.</p>
+              </div>
+            )}
+
+            {/* Access requests — users requesting access to existing APIs */}
+            {accessReqs.length > 0 && (
+              <div className="mb-6">
+                <div className="flex items-center gap-2 mb-3">
+                  <span className="text-xs font-medium text-blue-600 uppercase tracking-wide">Access requests</span>
+                  <span className="bg-blue-100 text-blue-700 text-xs px-2 py-0.5 rounded-full font-medium">{accessReqs.length}</span>
+                </div>
+                <div className="border border-blue-100 rounded-xl overflow-hidden">
+                  <table className="w-full text-sm">
+                    <thead>
+                      <tr className="border-b border-blue-100 bg-blue-50">
+                        <th className="text-left text-xs font-medium text-blue-500 px-4 py-3">User</th>
+                        <th className="text-left text-xs font-medium text-blue-500 px-4 py-3">API</th>
+                        <th className="text-left text-xs font-medium text-blue-500 px-4 py-3">Category</th>
+                        <th className="text-left text-xs font-medium text-blue-500 px-4 py-3">Requested</th>
+                        <th className="text-left text-xs font-medium text-blue-500 px-4 py-3">Actions</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {accessReqs.map(r => (
+                        <tr key={r.id} className="border-b border-blue-50 last:border-0 bg-white hover:bg-blue-50 transition-colors">
+                          <td className="px-4 py-3 font-medium text-gray-900 text-xs">{r.email}</td>
+                          <td className="px-4 py-3 text-sm font-medium text-gray-900">{r.name}</td>
+                          <td className="px-4 py-3"><Badge color="blue">{r.api_category}</Badge></td>
+                          <td className="px-4 py-3 text-xs text-gray-400">{new Date(r.ts).toLocaleDateString()}</td>
+                          <td className="px-4 py-3">
+                            <div className="flex gap-2">
+                              <button onClick={() => grant(r)} disabled={saving === r.id}
+                                className="px-3 py-1.5 bg-green-600 text-white text-xs rounded-lg hover:bg-green-700 transition-colors font-medium disabled:opacity-50">
+                                Grant
+                              </button>
+                              <button onClick={() => deny(r)} disabled={saving === r.id}
+                                className="px-3 py-1.5 border border-red-200 text-red-600 text-xs rounded-lg hover:bg-red-50 transition-colors">
+                                Deny
+                              </button>
+                            </div>
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+            )}
+          </>
+        )
+      })()}
 
       {pending.length === 0 && (
         <div className="text-center py-12 text-gray-300 text-sm">No pending requests</div>
