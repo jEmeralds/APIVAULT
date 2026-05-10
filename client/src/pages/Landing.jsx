@@ -401,13 +401,14 @@ export function Landing() {
       {/* ── Nav ── */}
       <nav className="fixed top-0 left-0 right-0 z-50 border-b border-white/5 bg-[#050505]/90 backdrop-blur-md">
         <div className="max-w-6xl mx-auto px-5 h-14 flex items-center justify-between">
-          <div className="flex items-center gap-2.5">
+          <button onClick={() => window.scrollTo({ top: 0, behavior: 'smooth' })}
+            className="flex items-center gap-2.5 hover:opacity-70 transition-opacity">
             <div className="w-6 h-6 bg-[#34d399] rounded-md flex items-center justify-center">
               <div className="w-2 h-2 bg-[#050505] rounded-sm" />
             </div>
             <span className="font-bold tracking-tight">APIvault</span>
             <span className="mono text-[10px] text-white/20 border border-white/10 px-1.5 py-0.5 rounded ml-0.5">beta</span>
-          </div>
+          </button>
           <div className="flex items-center gap-1 overflow-x-auto">
             {[['Demo', '#demo'], ['Features', '#features'], ['APIs', '#apis']].map(([label, href]) => (
               <button key={label}
