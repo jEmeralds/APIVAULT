@@ -399,7 +399,7 @@ export function Landing() {
       `}</style>
 
       {/* ── Nav ── */}
-      <nav className="sticky top-0 z-50 border-b border-white/5 bg-[#050505]/90 backdrop-blur-md">
+      <nav className="fixed top-0 left-0 right-0 z-50 border-b border-white/5 bg-[#050505]/90 backdrop-blur-md">
         <div className="max-w-6xl mx-auto px-5 h-14 flex items-center justify-between">
           <div className="flex items-center gap-2.5">
             <div className="w-6 h-6 bg-[#34d399] rounded-md flex items-center justify-center">
@@ -439,7 +439,7 @@ export function Landing() {
       </nav>
 
       {/* ── Hero ── */}
-      <section className="grid-bg pt-20 pb-16 px-5 max-w-6xl mx-auto">
+      <section className="grid-bg pt-32 pb-16 px-5 max-w-6xl mx-auto">
         <div className="fade-up d1 inline-flex items-center gap-2 border border-[#34d399]/25 bg-[#34d399]/6 rounded-full px-3.5 py-1.5 mb-7">
           <div className="w-1.5 h-1.5 rounded-full bg-[#34d399] animate-pulse" />
           <span className="mono text-xs text-[#34d399]">{liveCount} APIs live · gateway operational</span>
