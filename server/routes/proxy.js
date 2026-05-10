@@ -8,7 +8,7 @@ import { registry } from '../services/registry.js'
 
 export const proxyRoute = Router()
 
-proxyRoute.all('/:service/*', auth, async (req, res) => {
+proxyRoute.all('/:service/*?', auth, async (req, res) => {
   const { service } = req.params
   const user = req.user
 
@@ -40,7 +40,7 @@ proxyRoute.all('/:service/*', auth, async (req, res) => {
   }
 
   // Build upstream request
-  const upstreamPath = req.path.replace(`/${service}`, '') || '/'
+  const upstreamPath = ('/' + (req.params[0] || '')).replace('//', '/') || '/'
   const queryString  = Object.keys(req.query).length
     ? '?' + new URLSearchParams(req.query).toString()
     : ''
