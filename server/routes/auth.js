@@ -8,11 +8,9 @@ import { createHmac, randomBytes, timingSafeEqual } from 'crypto'
 
 export const authRoute = Router()
 
-const JWT_SECRET      = process.env.JWT_SECRET      || 'change-this-in-production'
-const APP_URL         = process.env.APP_URL          || 'http://localhost:5173'
-const ADMIN_EMAIL     = process.env.ADMIN_EMAIL      || ''
-// Resend free tier: all emails routed to account owner until domain is verified
-const RESEND_TO       = process.env.RESEND_TO        || ''
+const JWT_SECRET  = process.env.JWT_SECRET  || 'change-this-in-production'
+const APP_URL     = process.env.APP_URL     || 'http://localhost:5173'
+const ADMIN_EMAIL = process.env.ADMIN_EMAIL || ''
 
 // ─── JWT ──────────────────────────────────────────────────────────────────
 
@@ -39,7 +37,6 @@ function hashPassword(password, salt) {
 }
 
 // ─── Disposable email blocklist ───────────────────────────────────────────
-// Top 100+ known disposable/throwaway email domains
 
 const DISPOSABLE_DOMAINS = new Set([
   'mailinator.com','guerrillamail.com','tempmail.com','throwaway.email',
@@ -86,15 +83,13 @@ function isDisposable(email) {
 function spamScore(email) {
   const local = email.split('@')[0].toLowerCase()
   let score = 0
-
-  if (/\d{5,}/.test(local))           score += 3  // 5+ consecutive numbers
-  if (/(.)\1{3,}/.test(local))         score += 3  // repeated chars: aaaa
-  if (local.length > 35)               score += 2  // unusually long local part
-  if (/^[a-z0-9]{12,}$/.test(local))  score += 2  // long random-looking string
-  if (/[^a-z0-9._+-]/.test(local))    score += 2  // unusual characters
-  if (/^\d+$/.test(local))            score += 3  // all numbers
-
-  return score  // score >= 5 = likely bot/spam
+  if (/\d{5,}/.test(local))           score += 3
+  if (/(.)\1{3,}/.test(local))         score += 3
+  if (local.length > 35)               score += 2
+  if (/^[a-z0-9]{12,}$/.test(local))  score += 2
+  if (/[^a-z0-9._+-]/.test(local))    score += 2
+  if (/^\d+$/.test(local))            score += 3
+  return score
 }
 
 // ─── IP rate limiter ──────────────────────────────────────────────────────
@@ -105,10 +100,10 @@ function signupRateLimited(ip) {
   const now = Date.now()
   const key = `signup:${ip}`
   let b = signupBuckets.get(key)
-  if (!b || now > b.reset) b = { count: 0, reset: now + 3_600_000 }  // 1 hour window
+  if (!b || now > b.reset) b = { count: 0, reset: now + 3_600_000 }
   b.count++
   signupBuckets.set(key, b)
-  return b.count > 3  // max 3 signups per IP per hour
+  return b.count > 3
 }
 
 // ─── Email sender via SendGrid ────────────────────────────────────────────
@@ -127,11 +122,11 @@ async function sendEmail({ to, subject, html }) {
       method: 'POST',
       headers: {
         'Authorization': `Bearer ${sgKey}`,
-        'Content-Type': 'application/json',
+        'Content-Type':  'application/json',
       },
       body: JSON.stringify({
         personalizations: [{ to: [{ email: to }] }],
-        from: { email: 'ivey.ads100@gmail.com', name: 'APIvault' },
+        from: { email: 'noreply@apivault.uk', name: 'APIvault' },  // ← verified domain
         subject,
         content: [{ type: 'text/html', value: html }],
       }),
@@ -148,7 +143,6 @@ async function sendEmail({ to, subject, html }) {
     console.error(`[EMAIL] SendGrid failed: ${e.message}`)
   }
 
-  console.log(`[EMAIL] FAILED — Subject: ${subject} | To: ${to}`)
   return { ok: false }
 }
 
@@ -164,28 +158,18 @@ authRoute.post('/login', async (req, res) => {
     .eq('email', email.toLowerCase().trim())
     .single()
 
-  if (!user || !user.password_hash) {
+  if (!user || !user.password_hash)
     return res.status(401).json({ error: 'Invalid email or password' })
-  }
 
   const hash = hashPassword(password, user.password_salt)
-  if (hash !== user.password_hash) {
+  if (hash !== user.password_hash)
     return res.status(401).json({ error: 'Invalid email or password' })
-  }
 
-  if (user.status === 'pending') {
-    return res.status(403).json({
-      error: 'pending',
-      message: 'Your account is awaiting admin approval. Check your email for updates.'
-    })
-  }
+  if (user.status === 'pending')
+    return res.status(403).json({ error: 'pending', message: 'Your account is awaiting admin approval. Check your email for updates.' })
 
-  if (user.status === 'suspended') {
-    return res.status(403).json({
-      error: 'suspended',
-      message: 'Your account has been suspended. Contact support.'
-    })
-  }
+  if (user.status === 'suspended')
+    return res.status(403).json({ error: 'suspended', message: 'Your account has been suspended. Contact support.' })
 
   const token = signToken({ id: user.id, role: user.role, email: user.email })
   res.json({ token, role: user.role, email: user.email })
@@ -196,56 +180,38 @@ authRoute.post('/login', async (req, res) => {
 authRoute.post('/register', async (req, res) => {
   const { email, password, plan = 'dev', honeypot } = req.body
 
-  // Layer 1 — Honeypot: bots fill hidden fields, humans don't
-  if (honeypot) {
-    // Silently accept but don't actually create account
+  if (honeypot)
     return res.status(201).json({ ok: true, message: 'Account created. Check your email to verify.' })
-  }
 
-  // Layer 2 — Basic validation
-  if (!email || !password) {
+  if (!email || !password)
     return res.status(400).json({ error: 'Email and password required' })
-  }
-  if (password.length < 8) {
+
+  if (password.length < 8)
     return res.status(400).json({ error: 'Password must be at least 8 characters' })
-  }
 
   const cleanEmail = email.toLowerCase().trim()
 
-  // Layer 3 — Email format
-  if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(cleanEmail)) {
+  if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(cleanEmail))
     return res.status(400).json({ error: 'Invalid email address' })
-  }
 
-  // Layer 4 — Disposable email check
-  if (isDisposable(cleanEmail)) {
+  if (isDisposable(cleanEmail))
     return res.status(400).json({ error: 'Disposable email addresses are not allowed. Please use your real email.' })
-  }
 
-  // Layer 5 — Spam score
   const score = spamScore(cleanEmail)
   if (score >= 5) {
-    // Log but silently reject — don't tell bots what triggered it
     await db.from('signup_attempts').insert({ ip: req.ip, email: cleanEmail, score, blocked: true }).then(() => {}, () => {})
     return res.status(400).json({ error: 'This email address cannot be used. Please contact support if you think this is an error.' })
   }
 
-  // Layer 6 — IP rate limit
-  if (signupRateLimited(req.ip)) {
+  if (signupRateLimited(req.ip))
     return res.status(429).json({ error: 'Too many signups from this location. Try again in an hour.' })
-  }
 
-  // Log attempt
   await db.from('signup_attempts').insert({ ip: req.ip, email: cleanEmail, score, blocked: false }).then(() => {}, () => {})
 
-  // Check duplicate
   const { data: existing } = await db.from('users').select('id, status').eq('email', cleanEmail).maybeSingle()
-  if (existing) {
-    // Don't leak whether email exists — same message either way
+  if (existing)
     return res.status(409).json({ error: 'An account with this email already exists' })
-  }
 
-  // Create user as pending
   const salt = randomBytes(32).toString('hex')
   const hash = hashPassword(password, salt)
 
@@ -258,11 +224,9 @@ authRoute.post('/register', async (req, res) => {
     status: 'pending',
   }).select('id, email').single()
 
-  if (error) {
+  if (error)
     return res.status(500).json({ error: 'Registration failed. Please try again.' })
-  }
 
-  // Create email verification token (expires in 24h)
   const verifyToken = randomBytes(32).toString('hex')
   await db.from('email_verifications').insert({
     user_id:    user.id,
@@ -270,7 +234,6 @@ authRoute.post('/register', async (req, res) => {
     expires_at: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString(),
   })
 
-  // Send verification email
   const verifyUrl = `${APP_URL}/verify?token=${verifyToken}`
   await sendEmail({
     to:      cleanEmail,
@@ -278,12 +241,13 @@ authRoute.post('/register', async (req, res) => {
     html: `
       <div style="font-family:sans-serif;max-width:480px;margin:0 auto;padding:40px 20px">
         <div style="display:flex;align-items:center;gap:8px;margin-bottom:32px">
-          <div style="width:20px;height:20px;background:#111;border-radius:4px"></div>
-          <strong>APIvault</strong>
+          <div style="width:20px;height:20px;background:#34d399;border-radius:4px"></div>
+          <strong style="color:#111">APIvault</strong>
         </div>
-        <h2 style="font-size:20px;font-weight:600;margin-bottom:8px">Verify your email</h2>
-        <p style="color:#666;margin-bottom:24px">Click the button below to verify your email address. This link expires in 24 hours.</p>
-        <a href="${verifyUrl}" style="display:inline-block;background:#111;color:#fff;text-decoration:none;padding:12px 24px;border-radius:8px;font-size:14px;font-weight:500">
+        <h2 style="font-size:20px;font-weight:600;margin-bottom:8px;color:#111">Verify your email</h2>
+        <p style="color:#666;margin-bottom:24px">Click the button below to verify your email address. This link expires in 7 days.</p>
+        <a href="${verifyUrl}"
+          style="display:inline-block;background:#111;color:#fff;text-decoration:none;padding:12px 24px;border-radius:8px;font-size:14px;font-weight:500">
           Verify email address
         </a>
         <p style="color:#999;font-size:12px;margin-top:24px">
@@ -294,7 +258,6 @@ authRoute.post('/register', async (req, res) => {
     `,
   })
 
-  // Notify admin
   await db.from('admin_alerts').insert({
     type:    'user_pending',
     message: `New signup awaiting verification: ${cleanEmail} (plan: ${plan})`,
@@ -319,24 +282,19 @@ authRoute.get('/verify', async (req, res) => {
     .eq('verified', false)
     .single()
 
-  if (!record) {
+  if (!record)
     return res.status(400).json({ error: 'Invalid or expired verification link' })
-  }
 
-  if (new Date(record.expires_at) < new Date()) {
+  if (new Date(record.expires_at) < new Date())
     return res.status(400).json({ error: 'Verification link has expired. Please sign up again.' })
-  }
 
-  // Mark as verified
   await db.from('email_verifications').update({ verified: true }).eq('id', record.id)
 
-  // Update admin alert to show email is verified
   await db.from('admin_alerts').insert({
     type:    'user_verified',
     message: `Email verified: ${record.users.email} — ready for approval`,
   }).then(() => {}, () => {})
 
-  // Notify admin email
   if (ADMIN_EMAIL) {
     await sendEmail({
       to:      ADMIN_EMAIL,
@@ -344,12 +302,15 @@ authRoute.get('/verify', async (req, res) => {
       html: `
         <div style="font-family:sans-serif;max-width:480px;margin:0 auto;padding:40px 20px">
           <div style="display:flex;align-items:center;gap:8px;margin-bottom:32px">
-            <div style="width:20px;height:20px;background:#111;border-radius:4px"></div>
-            <strong>APIvault Admin</strong>
+            <div style="width:20px;height:20px;background:#34d399;border-radius:4px"></div>
+            <strong style="color:#111">APIvault Admin</strong>
           </div>
-          <h2 style="font-size:20px;font-weight:600;margin-bottom:8px">New user pending approval</h2>
-          <p style="color:#666;margin-bottom:8px"><strong>${record.users.email}</strong> has verified their email and is waiting for your approval.</p>
-          <a href="${APP_URL}/admin" style="display:inline-block;background:#111;color:#fff;text-decoration:none;padding:12px 24px;border-radius:8px;font-size:14px;font-weight:500;margin-top:16px">
+          <h2 style="font-size:20px;font-weight:600;margin-bottom:8px;color:#111">New user pending approval</h2>
+          <p style="color:#666;margin-bottom:8px">
+            <strong>${record.users.email}</strong> has verified their email and is waiting for your approval.
+          </p>
+          <a href="${APP_URL}/admin"
+            style="display:inline-block;background:#111;color:#fff;text-decoration:none;padding:12px 24px;border-radius:8px;font-size:14px;font-weight:500;margin-top:16px">
             Review in admin dashboard
           </a>
         </div>
@@ -360,10 +321,9 @@ authRoute.get('/verify', async (req, res) => {
   res.json({ ok: true, message: 'Email verified. Your account is now pending admin approval. You will be notified once approved.' })
 })
 
-// ─── POST /auth/approve (admin only) ─────────────────────────────────────
+// ─── POST /auth/approve/:userId (admin only) ──────────────────────────────
 
 authRoute.post('/approve/:userId', async (req, res) => {
-  // Verify admin JWT
   const header = req.headers['authorization']
   if (!header?.startsWith('Bearer ')) return res.status(401).json({ error: 'No token' })
   const payload = verifyToken(header.slice(7))
@@ -380,7 +340,6 @@ authRoute.post('/approve/:userId', async (req, res) => {
 
   if (error || !user) return res.status(404).json({ error: 'User not found' })
 
-  // Set correct categories based on plan
   const PLAN_CATS = {
     dev:      ['ai', 'dev', 'data'],
     creator:  ['ai', 'comms', 'data'],
@@ -390,7 +349,6 @@ authRoute.post('/approve/:userId', async (req, res) => {
   await db.from('user_api_access')
     .upsert({ user_id: req.params.userId, categories: cats, daily_limit: 10000 }, { onConflict: 'user_id' })
 
-  // Add starting credits if specified
   if (starting_credits > 0) {
     await db.rpc('add_credits', {
       p_user_id: req.params.userId,
@@ -399,7 +357,6 @@ authRoute.post('/approve/:userId', async (req, res) => {
     })
   }
 
-  // Notify user they are approved
   const creditsMsg = starting_credits > 0
     ? `<p style="color:#16a34a;font-weight:500;margin-bottom:16px">$${parseFloat(starting_credits).toFixed(2)} starting credits have been added to your account.</p>`
     : ''
@@ -410,15 +367,21 @@ authRoute.post('/approve/:userId', async (req, res) => {
     html: `
       <div style="font-family:sans-serif;max-width:480px;margin:0 auto;padding:40px 20px">
         <div style="display:flex;align-items:center;gap:8px;margin-bottom:32px">
-          <div style="width:20px;height:20px;background:#111;border-radius:4px"></div>
-          <strong>APIvault</strong>
+          <div style="width:20px;height:20px;background:#34d399;border-radius:4px"></div>
+          <strong style="color:#111">APIvault</strong>
         </div>
-        <h2 style="font-size:20px;font-weight:600;margin-bottom:8px">You are approved!</h2>
-        <p style="color:#666;margin-bottom:16px">Your APIvault account has been approved. You can now sign in and start using the platform.</p>
+        <h2 style="font-size:20px;font-weight:600;margin-bottom:8px;color:#111">You are approved! 🎉</h2>
+        <p style="color:#666;margin-bottom:16px">
+          Your APIvault account has been approved. You can now sign in and start using the platform.
+        </p>
         ${creditsMsg}
-        <a href="${APP_URL}" style="display:inline-block;background:#111;color:#fff;text-decoration:none;padding:12px 24px;border-radius:8px;font-size:14px;font-weight:500">
+        <a href="${APP_URL}"
+          style="display:inline-block;background:#111;color:#fff;text-decoration:none;padding:12px 24px;border-radius:8px;font-size:14px;font-weight:500">
           Sign in to APIvault
         </a>
+        <p style="color:#999;font-size:12px;margin-top:24px">
+          Start with 35+ free APIs — no credits needed. Top up anytime via M-Pesa or card.
+        </p>
       </div>
     `,
   })
