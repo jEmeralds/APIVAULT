@@ -955,6 +955,7 @@ const TABS = [
   { id: 'overview', label: 'Overview' },
   { id: 'billing',  label: 'Billing' },
   { id: 'logs',     label: 'Logs' },
+  { id: 'settings', label: 'Settings' },
 ]
 
 export function AdminDashboard() {
@@ -1082,6 +1083,7 @@ export function AdminDashboard() {
         {tab === 'requests' && <Requests d={data.requests} onRefresh={() => load('requests')} />}
         {tab === 'billing'  && <Billing  d={data.billing} />}
         {tab === 'logs'     && <Logs     d={data.logs}    onRefresh={() => load('logs')} />}
+        {tab === 'settings' && <AdminSettings />}
       </div>
     </div>
   )
