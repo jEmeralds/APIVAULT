@@ -947,6 +947,123 @@ function Requests({ d, onRefresh }) {
 
 // ─── Main shell ───────────────────────────────────────────────────────────
 
+// ─── Admin Settings ───────────────────────────────────────────────────────
+
+function AdminSettings() {
+  const [pwForm, setPwForm]     = useState({ current: '', next: '', confirm: '' })
+  const [pwMsg, setPwMsg]       = useState(null)
+  const [pwSaving, setPwSaving] = useState(false)
+  const [platform, setPlatform] = useState({ maintenance: false, auto_approve: false })
+  const nav = useNavigate()
+
+  async function changePassword(e) {
+    e.preventDefault()
+    if (pwForm.next !== pwForm.confirm) { setPwMsg({ ok: false, text: 'Passwords do not match' }); return }
+    if (pwForm.next.length < 8) { setPwMsg({ ok: false, text: 'Minimum 8 characters' }); return }
+    setPwSaving(true)
+    try {
+      const res = await fetch(`${BASE}/user/change-password`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${localStorage.getItem('token')}` },
+        body: JSON.stringify({ current_password: pwForm.current, new_password: pwForm.next }),
+      })
+      const d = await res.json()
+      if (!res.ok) throw new Error(d.error)
+      setPwMsg({ ok: true, text: 'Password updated successfully' })
+      setPwForm({ current: '', next: '', confirm: '' })
+    } catch (e) { setPwMsg({ ok: false, text: e.message }) }
+    setPwSaving(false)
+  }
+
+  return (
+    <div className="max-w-lg space-y-6">
+      <h2 className="font-semibold text-gray-900">Admin Settings</h2>
+
+      <div className="bg-white border border-gray-100 rounded-xl p-5">
+        <div className="text-sm font-bold text-gray-900 mb-4">Change password</div>
+        <form onSubmit={changePassword} className="space-y-3">
+          {[
+            { label: 'Current password', key: 'current', ph: '••••••••' },
+            { label: 'New password',     key: 'next',    ph: 'Min 8 characters' },
+            { label: 'Confirm new',      key: 'confirm', ph: '••••••••' },
+          ].map(f => (
+            <div key={f.key}>
+              <label className="block text-xs font-medium text-gray-500 mb-1.5">{f.label}</label>
+              <input type="password" placeholder={f.ph} value={pwForm[f.key]}
+                onChange={e => setPwForm(p => ({ ...p, [f.key]: e.target.value }))}
+                className="w-full px-3 py-2.5 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-gray-900 placeholder:text-gray-300" />
+            </div>
+          ))}
+          {pwMsg && (
+            <div className={`flex items-center gap-2 p-3 rounded-lg border text-xs ${pwMsg.ok ? 'bg-green-50 border-green-100 text-green-700' : 'bg-red-50 border-red-100 text-red-600'}`}>
+              {pwMsg.text}
+            </div>
+          )}
+          <button type="submit" disabled={pwSaving || !pwForm.current || !pwForm.next || !pwForm.confirm}
+            className="w-full py-2.5 bg-gray-900 text-white text-sm font-semibold rounded-lg hover:bg-gray-800 disabled:opacity-40 transition-all">
+            {pwSaving ? 'Saving...' : 'Update password'}
+          </button>
+        </form>
+      </div>
+
+      <div className="bg-white border border-gray-100 rounded-xl p-5">
+        <div className="text-sm font-bold text-gray-900 mb-4">Notification settings</div>
+        <div className="space-y-3">
+          {[
+            { label: 'Admin email',   value: 'Set via ADMIN_EMAIL env var on Railway' },
+            { label: 'Email sender',  value: 'noreply@apivault.uk (SendGrid verified)' },
+            { label: 'Notifications', value: 'New signups · Approvals · API requests' },
+          ].map((r, i) => (
+            <div key={i} className="flex items-start justify-between py-2.5 border-b border-gray-50 last:border-0 gap-4">
+              <span className="text-xs text-gray-500 flex-shrink-0">{r.label}</span>
+              <span className="text-xs font-medium text-gray-700 text-right">{r.value}</span>
+            </div>
+          ))}
+        </div>
+        <div className="mt-3 p-3 bg-blue-50 border border-blue-100 rounded-lg text-xs text-blue-700">
+          To change the admin email, update <code className="bg-blue-100 px-1 rounded">ADMIN_EMAIL</code> in Railway environment variables.
+        </div>
+      </div>
+
+      <div className="bg-white border border-gray-100 rounded-xl p-5">
+        <div className="text-sm font-bold text-gray-900 mb-4">Platform settings</div>
+        <div className="space-y-4">
+          {[
+            { key: 'maintenance',  label: 'Maintenance mode',     desc: 'Block all API proxy calls — use during updates',      color: 'bg-red-500' },
+            { key: 'auto_approve', label: 'Auto-approve signups', desc: 'Skip admin approval — users get access immediately', color: 'bg-green-500' },
+          ].map(s => (
+            <div key={s.key} className="flex items-center justify-between">
+              <div>
+                <div className="text-sm font-medium text-gray-900">{s.label}</div>
+                <div className="text-xs text-gray-400 mt-0.5">{s.desc}</div>
+              </div>
+              <button onClick={() => setPlatform(p => ({ ...p, [s.key]: !p[s.key] }))}
+                className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ${platform[s.key] ? s.color : 'bg-gray-200'}`}>
+                <span className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${platform[s.key] ? 'translate-x-6' : 'translate-x-1'}`} />
+              </button>
+            </div>
+          ))}
+        </div>
+        <p className="text-xs text-gray-300 mt-4">Toggle states are UI only — backend enforcement requires Railway env var updates.</p>
+      </div>
+
+      <div className="bg-white border border-red-100 rounded-xl p-5">
+        <div className="text-sm font-bold text-red-500 mb-4">Session</div>
+        <div className="flex items-center justify-between">
+          <div>
+            <div className="text-sm font-medium text-gray-900">Sign out</div>
+            <div className="text-xs text-gray-400 mt-0.5">Clears your admin session</div>
+          </div>
+          <button onClick={() => { localStorage.clear(); nav('/') }}
+            className="px-4 py-2 border border-red-200 text-red-600 text-xs rounded-lg hover:bg-red-50 transition-colors font-semibold">
+            Sign out
+          </button>
+        </div>
+      </div>
+    </div>
+  )
+}
+
 const TABS = [
   { id: 'apis',     label: 'APIs' },
   { id: 'users',    label: 'Users' },
