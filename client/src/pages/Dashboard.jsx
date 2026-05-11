@@ -18,6 +18,18 @@ const API_DOCS = {
   jokeapi:      { tryPath: '/joke/Programming?type=single',               endpoints: [{ method:'GET', path:'/joke/:category',    desc:'Get a joke',            params:[{name:':category',desc:'Category',example:'Programming'}] }] },
   dictionary:   { tryPath: '/entries/en/hello',                           endpoints: [{ method:'GET', path:'/entries/en/:word',  desc:'Word definition',       params:[{name:':word',desc:'English word',example:'developer'}] }] },
 
+  // ── AI ─────────────────────────────────────────────────────────────────────
+  claude: {
+    tryPath: '/messages',
+    tryMethod: 'POST',
+    tryBody: {
+      model: 'claude-haiku-4-5-20251001',
+      max_tokens: 100,
+      messages: [{ role: 'user', content: 'Say hello in one sentence.' }]
+    },
+    endpoints: [{ method:'POST', path:'/messages', desc:'Send a message', params:[{name:'model',desc:'Model ID',example:'claude-haiku-4-5-20251001'},{name:'max_tokens',desc:'Max response tokens',example:'1024'},{name:'messages',desc:'Array of messages',example:'[{role:user,content:Hello}]'}] }]
+  },
+
   // ── DATA ────────────────────────────────────────────────────────────────
   openlib:      { tryPath: '/search.json?q=javascript&limit=3',          endpoints: [{ method:'GET', path:'/search.json',        desc:'Search books',          params:[{name:'q',desc:'Search query',example:'javascript'},{name:'limit',desc:'Max results',example:'5'}] },{ method:'GET', path:'/works/:id.json', desc:'Book details', params:[{name:':id',desc:'Work ID',example:'OL45804W'}] }] },
   nasa:         { tryPath: '/planetary/apod?count=1',                    endpoints: [{ method:'GET', path:'/planetary/apod',     desc:'Astronomy picture',     params:[{name:'count',desc:'Number of images',example:'1'}] },{ method:'GET', path:'/neo/rest/v1/feed', desc:'Near Earth Objects', params:[{name:'start_date',desc:'YYYY-MM-DD',example:'2024-01-01'}] }] },
@@ -131,8 +143,14 @@ function APICard({ a, expanded, onExpand, vaultKey, onAddCredits }) {
     setRunning(true); setResult(null)
     try {
       const uuid = vaultKey?.replace('sk-vault-', '')
+      const isPost = doc?.tryMethod === 'POST'
       const res  = await fetch(`${BASE}/proxy/${a.slug}${tryPath}`, {
-        headers: { 'x-vault-key': uuid }
+        method: isPost ? 'POST' : 'GET',
+        headers: {
+          'x-vault-key': uuid,
+          ...(isPost ? { 'Content-Type': 'application/json' } : {})
+        },
+        body: isPost && doc?.tryBody ? JSON.stringify(doc.tryBody) : undefined,
       })
       const data = await res.json()
       setResult({ ok: res.ok, status: res.status, data })

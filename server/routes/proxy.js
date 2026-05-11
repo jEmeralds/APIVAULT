@@ -61,18 +61,25 @@ proxyRoute.all('/:service/*?', auth, async (req, res) => {
     if (api.slug === 'newsapi') {
       headers['X-Api-Key'] = masterKey
     } else if (api.slug === 'openweather') {
-      // OpenWeather uses ?appid= query param — append it
       const sep = upstreamUrl.includes('?') ? '&' : '?'
       const finalUrl = upstreamUrl + sep + 'appid=' + masterKey
       return proxyRequest(req, res, api, user, finalUrl, headers, charged, isFree)
     } else if (api.slug === 'nasa') {
-      // NASA uses ?api_key= query param
       const sep = upstreamUrl.includes('?') ? '&' : '?'
       const finalUrl = upstreamUrl + sep + 'api_key=' + masterKey
       return proxyRequest(req, res, api, user, finalUrl, headers, charged, isFree)
     } else if (api.slug === 'ipgeo') {
-      // ip-api.com uses no auth at all
       return proxyRequest(req, res, api, user, upstreamUrl, headers, charged, isFree)
+    } else if (api.slug === 'claude') {
+      // Anthropic uses x-api-key header + anthropic-version
+      headers['x-api-key'] = masterKey
+      headers['anthropic-version'] = '2023-06-01'
+      delete headers['Authorization']
+    } else if (api.slug === 'gemini') {
+      // Gemini uses ?key= query param
+      const sep = upstreamUrl.includes('?') ? '&' : '?'
+      const finalUrl = upstreamUrl + sep + 'key=' + masterKey
+      return proxyRequest(req, res, api, user, finalUrl, headers, charged, isFree)
     } else {
       headers[authHeader] = `${authPrefix}${masterKey}`
     }
