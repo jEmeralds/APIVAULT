@@ -110,20 +110,49 @@ function Tag({ children, color = 'gray' }) {
 
 const CAT_COLOR = { ai:'purple', data:'amber', dev:'orange', payments:'green', comms:'blue', geo:'teal', finance:'emerald', health:'rose', media:'pink' }
 
-function buildCode(slug, path, method = 'GET', lang = 'js', vaultKey = null) {
-  const API_BASE = 'https://apivault-production-736c.up.railway.app'
-  // Always show masked key in code snippets for security
+function buildCode(slug, path, method = 'GET', lang = 'js', vaultKey = null, body = null) {
+  const API_BASE = 'https://api.apivault.uk'
   const displayKey = 'YOUR_VAULT_KEY'
-  if (lang === 'js') return `const res = await fetch('${API_BASE}/proxy/${slug}${path}', {
+  const isPost = method === 'POST'
+  const bodyStr = body ? JSON.stringify(body, null, 2) : null
+
+  if (lang === 'js') {
+    if (isPost) return `const res = await fetch('${API_BASE}/proxy/${slug}${path}', {
+  method: 'POST',
+  headers: {
+    'x-vault-key': '${displayKey}',
+    'Content-Type': 'application/json'
+  },
+  body: JSON.stringify(${bodyStr})
+})
+const data = await res.json()
+console.log(data)`
+    return `const res = await fetch('${API_BASE}/proxy/${slug}${path}', {
   headers: { 'x-vault-key': '${displayKey}' }
 })
 const data = await res.json()
 console.log(data)`
+  }
 
-  if (lang === 'python') return `import requests
+  if (lang === 'python') {
+    if (isPost) return `import requests
+res = requests.post('${API_BASE}/proxy/${slug}${path}',
+  headers={
+    'x-vault-key': '${displayKey}',
+    'Content-Type': 'application/json'
+  },
+  json=${bodyStr})
+print(res.json())`
+    return `import requests
 res = requests.get('${API_BASE}/proxy/${slug}${path}',
   headers={'x-vault-key': '${displayKey}'})
 print(res.json())`
+  }
+
+  if (isPost) return `curl -X POST '${API_BASE}/proxy/${slug}${path}' \\
+  -H 'x-vault-key: ${displayKey}' \\
+  -H 'Content-Type: application/json' \\
+  -d '${bodyStr}'`
 
   return `curl '${API_BASE}/proxy/${slug}${path}' \\
   -H 'x-vault-key: ${displayKey}'`
@@ -241,7 +270,7 @@ function APICard({ a, expanded, onExpand, vaultKey, onAddCredits }) {
               </div>
             </div>
             <div className="bg-gray-950 rounded-xl p-4 overflow-x-auto">
-              <pre className="text-xs text-gray-300 font-mono leading-relaxed whitespace-pre">{buildCode(a.slug, doc?.tryPath || '/', 'GET', lang, vaultKey)}</pre>
+              <pre className="text-xs text-gray-300 font-mono leading-relaxed whitespace-pre">{buildCode(a.slug, doc?.tryPath || '/', doc?.tryMethod || 'GET', lang, vaultKey, doc?.tryBody)}</pre>
             </div>
           </div>
 
@@ -619,7 +648,7 @@ function Docs({ apis, vaultKey }) {
     <div>
       <h1 className="text-xl font-bold text-gray-900 mb-1">Documentation</h1>
       <p className="text-xs text-gray-400 mb-6 font-mono">
-        Base URL: https://apivault-production-736c.up.railway.app
+        Base URL: https://api.apivault.uk
       </p>
 
       <div className="flex gap-5">
