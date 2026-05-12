@@ -1,0 +1,18 @@
+{
+  "name": "apivault-js",
+  "version": "1.0.0",
+  "description": "Official JavaScript SDK for APIvault — one key for every API",
+  "main": "src/index.js",
+  "module": "src/index.js",
+  "types": "src/index.d.ts",
+  "type": "module",
+  "keywords": ["apivault", "api", "gateway", "sdk", "african", "mpesa"],
+  "author": "APIvault",
+  "license": "MIT",
+  "homepage": "https://apivault.uk",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/jEmeralds/apivault-js"
+  },
+  "files": ["src/", "README.md"]
+}
