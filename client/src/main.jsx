@@ -7,6 +7,7 @@ import { Landing }        from './pages/Landing.jsx'
 import { Login }          from './pages/Login.jsx'
 import { Dashboard }      from './pages/Dashboard.jsx'
 import { AdminDashboard } from './pages/AdminDashboard.jsx'
+import { DocsPage }       from './pages/Docs.jsx'
 
 // Redirect /verify?token=xxx to /login?token=xxx so Login.jsx handles it
 function VerifyRedirect() {
@@ -23,6 +24,7 @@ ReactDOM.createRoot(document.getElementById('root')).render(
         <Route path="/verify" element={<VerifyRedirect />} />
         <Route path="/app"    element={<Dashboard />} />
         <Route path="/admin"  element={<AdminDashboard />} />
+        <Route path="/docs"   element={<DocsPage />} />
         <Route path="*"       element={<Navigate to="/" />} />
       </Routes>
     </BrowserRouter>

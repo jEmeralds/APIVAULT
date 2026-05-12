@@ -2,7 +2,7 @@
 import { useEffect, useState, useRef } from 'react'
 import { useNavigate } from 'react-router-dom'
 
-const BASE = 'https://apivault-production-736c.up.railway.app'
+const BASE = import.meta.env.VITE_API_URL || 'https://api.apivault.uk'
 // Demo key for landing page live calls — read-only, low-credit account
 // This is intentionally a public demo key, not a user's real key
 const DEMO_KEY = import.meta.env.VITE_DEMO_VAULT_KEY || 'a27907ec-94cd-47f9-8b8f-458120a11154'
@@ -28,7 +28,7 @@ const STEPS = [
     visual: 'key',
     code: `// Store your vault key once — use it everywhere
 const VAULT_KEY = 'sk-vault-xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx'
-const BASE_URL  = 'https://apivault-production-736c.up.railway.app'`,
+const BASE_URL  = 'https://api.apivault.uk'`,
   },
   {
     id: 3,
@@ -113,35 +113,49 @@ const [news, rates, country] = await Promise.all([
 // ── Updated API list reflecting actual registry ───────────────────────────
 const APIS = [
   // Free & live
-  { name: 'Exchange Rates',   cat: 'finance',  price: 'Free',   live: true  },
-  { name: 'REST Countries',   cat: 'data',     price: 'Free',   live: true  },
-  { name: 'IP Geolocation',   cat: 'data',     price: 'Free',   live: true  },
-  { name: 'Open Meteo',       cat: 'geo',      price: 'Free',   live: true  },
-  { name: 'NewsAPI',          cat: 'data',     price: '$0.001', live: true  },
-  { name: 'OpenWeather',      cat: 'data',     price: '$0.001', live: true  },
-  { name: 'GitHub API',       cat: 'dev',      price: 'Free',   live: true  },
-  { name: 'Dictionary API',   cat: 'dev',      price: 'Free',   live: true  },
-  { name: 'JokeAPI',          cat: 'dev',      price: 'Free',   live: true  },
-  { name: 'Chuck Norris',     cat: 'dev',      price: 'Free',   live: true  },
-  { name: 'DummyJSON',        cat: 'dev',      price: 'Free',   live: true  },
-  { name: 'PokéAPI',          cat: 'data',     price: 'Free',   live: true  },
-  { name: 'SpaceX Data',      cat: 'data',     price: 'Free',   live: true  },
-  { name: 'CoinGecko',        cat: 'finance',  price: 'Free',   live: true  },
-  { name: 'Frankfurter Forex',cat: 'finance',  price: 'Free',   live: true  },
-  { name: 'NASA Open Data',   cat: 'data',     price: 'Free',   live: true  },
-  { name: 'Random User',      cat: 'data',     price: 'Free',   live: true  },
-  { name: 'Open FDA',         cat: 'health',   price: 'Free',   live: true  },
-  { name: 'iTunes Search',    cat: 'media',    price: 'Free',   live: true  },
+  { name: 'Exchange Rates',    cat: 'finance',  price: 'Free',   live: true  },
+  { name: 'REST Countries',    cat: 'data',     price: 'Free',   live: true  },
+  { name: 'IP Geolocation',    cat: 'data',     price: 'Free',   live: true  },
+  { name: 'Open Meteo',        cat: 'geo',      price: 'Free',   live: true  },
+  { name: 'Nominatim Geocoding',cat:'geo',      price: 'Free',   live: true  },
+  { name: 'World Time API',    cat: 'geo',      price: 'Free',   live: true  },
+  { name: 'NewsAPI',           cat: 'data',     price: '$0.001', live: true  },
+  { name: 'OpenWeather',       cat: 'data',     price: '$0.001', live: true  },
+  { name: 'GitHub API',        cat: 'dev',      price: 'Free',   live: true  },
+  { name: 'Dictionary API',    cat: 'dev',      price: 'Free',   live: true  },
+  { name: 'JokeAPI',           cat: 'dev',      price: 'Free',   live: true  },
+  { name: 'Chuck Norris',      cat: 'dev',      price: 'Free',   live: true  },
+  { name: 'DummyJSON',         cat: 'dev',      price: 'Free',   live: true  },
+  { name: 'HTTPBin',           cat: 'dev',      price: 'Free',   live: true  },
+  { name: 'Faker API',         cat: 'dev',      price: 'Free',   live: true  },
+  { name: 'Lorem Picsum',      cat: 'dev',      price: 'Free',   live: true  },
+  { name: 'PokéAPI',           cat: 'data',     price: 'Free',   live: true  },
+  { name: 'SpaceX Data',       cat: 'data',     price: 'Free',   live: true  },
+  { name: 'Rick & Morty',      cat: 'data',     price: 'Free',   live: true  },
+  { name: 'Random User',       cat: 'data',     price: 'Free',   live: true  },
+  { name: 'NASA Open Data',    cat: 'data',     price: 'Free',   live: true  },
+  { name: 'Cat Facts',         cat: 'data',     price: 'Free',   live: true  },
+  { name: 'Dog API',           cat: 'data',     price: 'Free',   live: true  },
+  { name: 'Advice Slip',       cat: 'data',     price: 'Free',   live: true  },
+  { name: 'Open Library',      cat: 'data',     price: 'Free',   live: true  },
+  { name: 'Open Trivia',       cat: 'data',     price: 'Free',   live: true  },
+  { name: 'Agify',             cat: 'data',     price: 'Free',   live: true  },
+  { name: 'CoinGecko',         cat: 'finance',  price: 'Free',   live: true  },
+  { name: 'Frankfurter Forex', cat: 'finance',  price: 'Free',   live: true  },
+  { name: 'Fear & Greed',      cat: 'finance',  price: 'Free',   live: true  },
+  { name: 'Open FDA',          cat: 'health',   price: 'Free',   live: true  },
+  { name: 'iTunes Search',     cat: 'media',    price: 'Free',   live: true  },
+  // Paid & live
+  { name: 'Claude (Anthropic)',cat: 'ai',       price: '$0.005', live: true  },
   // Coming soon
-  { name: 'GPT-4o',           cat: 'ai',       price: '$0.008', live: false },
-  { name: 'Claude (Anthropic)',cat: 'ai',       price: '$0.005', live: false },
-  { name: 'Gemini Flash',     cat: 'ai',       price: '$0.002', live: false },
-  { name: 'HeyGen Video',     cat: 'ai',       price: '$0.600', live: false },
-  { name: 'ElevenLabs Voice', cat: 'ai',       price: '$0.045', live: false },
-  { name: "Africa's Talking", cat: 'comms',    price: '$0.005', live: false },
-  { name: 'Twilio SMS',       cat: 'comms',    price: '$0.008', live: false },
-  { name: 'M-Pesa',           cat: 'payments', price: 'Free',   live: false },
-  { name: 'Flutterwave',      cat: 'payments', price: '$0.010', live: false },
+  { name: 'GPT-4o',            cat: 'ai',       price: '$0.008', live: false },
+  { name: 'Gemini Flash',      cat: 'ai',       price: '$0.002', live: false },
+  { name: 'HeyGen Video',      cat: 'ai',       price: '$0.600', live: false },
+  { name: 'ElevenLabs Voice',  cat: 'ai',       price: '$0.045', live: false },
+  { name: "Africa's Talking",  cat: 'comms',    price: '$0.005', live: false },
+  { name: 'Twilio SMS',        cat: 'comms',    price: '$0.008', live: false },
+  { name: 'M-Pesa',            cat: 'payments', price: 'Free',   live: false },
+  { name: 'Flutterwave',       cat: 'payments', price: '$0.010', live: false },
 ]
 
 const CAT = {
@@ -742,7 +756,7 @@ export function Landing() {
 # 3. Copy your vault key from Billing tab
 # 4. Start calling APIs
 
-curl 'https://apivault-production-736c.up.railway.app\\
+curl 'https://api.apivault.uk\
   /proxy/exchangerates/latest/KES' \\
   -H 'x-vault-key: sk-vault-your-key'
 
