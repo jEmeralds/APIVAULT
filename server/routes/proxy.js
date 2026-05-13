@@ -102,7 +102,7 @@ async function proxyRequest(req, res, api, user, upstreamUrl, headers, charged, 
       method:  req.method,
       headers,
       body:    req.method !== 'GET' && req.method !== 'HEAD' ? JSON.stringify(req.body) : undefined,
-      signal:  AbortSignal.timeout(30_000),
+      signal:  AbortSignal.timeout(120_000),  // 2 min — AI APIs need longer
     })
     upstreamData = await upstreamRes.json().catch(() => ({}))
   } catch (err) {
