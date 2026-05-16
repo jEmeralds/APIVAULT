@@ -808,7 +808,11 @@ curl 'https://api.apivault.uk\
                 {l}
               </button>
             ))}
-            <button onClick={goLogin} className="mono text-xs text-white/20 hover:text-white/50 transition-colors">Sign in</button>
+            {isLoggedIn ? (
+  <button onClick={() => { localStorage.clear(); nav('/') }} className="mono text-xs text-white/20 hover:text-white/50 transition-colors">Sign out</button>
+) : (
+  <button onClick={goLogin} className="mono text-xs text-white/20 hover:text-white/50 transition-colors">Sign in</button>
+)}
           </div>
         </div>
       </footer>
