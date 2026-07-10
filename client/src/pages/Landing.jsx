@@ -88,6 +88,7 @@ export function Landing() {
   const [demoLoading, setDemoLoading] = useState({})
   const [activeDemo, setActiveDemo] = useState('rates')
   const [liveData,   setLiveData]   = useState({})
+  const [showcaseApis, setShowcaseApis] = useState([])
   const isLoggedIn = !!localStorage.getItem('token')
   const userRole   = localStorage.getItem('role')
 
@@ -96,22 +97,54 @@ export function Landing() {
   function goDash()   { nav(userRole === 'admin' ? '/admin' : '/app') }
   function goLogout() { localStorage.clear(); nav('/') }
 
-  // Auto-run background demos
+  // Auto-run background demos — fetched dynamically from /showcase endpoint
   useEffect(() => {
-    const bg = [
-      { id: 'rates',   url: '/proxy/exchangerates/latest/KES',            parse: d => d?.rates ? `1 KES = $${d.rates.USD?.toFixed(5)} USD` : null },
-      { id: 'joke',    url: '/proxy/jokeapi/joke/Programming?type=single', parse: d => d?.joke?.slice(0, 80) || null },
-      { id: 'country', url: '/proxy/restcountries/name/kenya',             parse: d => { const k = Array.isArray(d) ? d[0] : d; return k ? `${k.flag || '🇰🇪'} ${k.name?.common} · Pop ${(k.population/1e6).toFixed(1)}M` : null } },
-    ]
-    bg.forEach(async d => {
+    async function runShowcase() {
       try {
-        const r = await fetch(`${BASE}${d.url}`, { headers: { 'x-vault-key': DEMO_KEY } })
-        const j = await r.json()
-        const v = d.parse(j)
-        if (v) setLiveData(p => ({ ...p, [d.id]: v }))
+        const res  = await fetch(`${BASE}/showcase`)
+        const data = await res.json()
+        const apis = (data.apis || []).slice(0, 3)
+        apis.forEach(async (api) => {
+          try {
+            const tryPath = api.try_path || '/'
+            const r = await fetch(`${BASE}/proxy/${api.slug}${tryPath}`, {
+              headers: { 'x-vault-key': DEMO_KEY }
+            })
+            const j = await r.json()
+            // Generic display — show first string value found in response
+            const display = extractDisplay(j, api.slug)
+            if (display) setLiveData(p => ({ ...p, [api.slug]: display }))
+          } catch {}
+        })
+        // Store showcase slugs for the ticker display
+        setShowcaseApis(apis)
       } catch {}
-    })
+    }
+    runShowcase()
   }, [])
+
+  function extractDisplay(data, slug) {
+    if (!data || typeof data !== 'object') return String(data).slice(0, 100)
+    // Common response patterns
+    if (data.rates?.USD) return `1 KES = $${data.rates.USD.toFixed(5)} USD`
+    if (data.joke) return data.joke.slice(0, 100)
+    if (data.fact) return data.fact.slice(0, 100)
+    if (data.slip?.advice) return data.slip.advice.slice(0, 100)
+    if (data.value?.joke) return data.value.joke.slice(0, 100)
+    if (Array.isArray(data) && data[0]?.name?.common) {
+      const k = data[0]
+      return `🇰🇪 ${k.name.common} · Pop ${((k.population||0)/1e6).toFixed(1)}M`
+    }
+    if (data.activity) return data.activity.slice(0, 100)
+    if (data.text) return data.text.slice(0, 100)
+    if (data.quote) return data.quote.slice(0, 100)
+    if (data.content) return data.content.slice(0, 100)
+    // Fallback — first string value
+    for (const v of Object.values(data)) {
+      if (typeof v === 'string' && v.length > 5) return v.slice(0, 100)
+    }
+    return null
+  }
 
   // Run selected demo
   async function runDemo(demo) {
@@ -215,27 +248,30 @@ export function Landing() {
             <p className="text-white/20 text-xs mt-4 fade-up d5">Free APIs work immediately · No credit card needed · Paid APIs from $1</p>
           </div>
 
-          {/* Live ticker — 3 APIs running right now */}
+          {/* Live ticker — dynamic from showcase endpoint */}
           <div className="space-y-3 fade-up d3">
             <p className="text-xs text-white/25 mono mb-4">// Three different APIs. Same key. Right now.</p>
-            {[
-              { id: 'rates',   label: 'exchangerates',  color: '#34d399' },
-              { id: 'country', label: 'restcountries',  color: '#60a5fa' },
-              { id: 'joke',    label: 'jokeapi',        color: '#fbbf24' },
-            ].map(item => (
-              <div key={item.id} className="bg-white/[0.03] border border-white/8 rounded-xl p-4">
-                <div className="flex items-center gap-2 mb-2">
-                  <span className="w-1.5 h-1.5 rounded-full animate-pulse" style={{ background: item.color }}/>
-                  <span className="mono text-[11px] text-white/30">/proxy/{item.label}</span>
-                  <span className="ml-auto mono text-[10px] text-white/20 border border-white/10 px-1.5 py-0.5 rounded">x-vault-key: ****</span>
+            {(showcaseApis.length > 0 ? showcaseApis : [
+              { slug: 'exchangerates', name: 'Exchange Rates' },
+              { slug: 'restcountries', name: 'REST Countries' },
+              { slug: 'jokeapi',       name: 'JokeAPI'        },
+            ]).map((api, i) => {
+              const colors = ['#34d399', '#60a5fa', '#fbbf24']
+              return (
+                <div key={api.slug} className="bg-white/[0.03] border border-white/8 rounded-xl p-4">
+                  <div className="flex items-center gap-2 mb-2">
+                    <span className="w-1.5 h-1.5 rounded-full animate-pulse" style={{ background: colors[i] || '#888' }}/>
+                    <span className="mono text-[11px] text-white/30">/proxy/{api.slug}</span>
+                    <span className="ml-auto mono text-[10px] text-white/20 border border-white/10 px-1.5 py-0.5 rounded">x-vault-key: ****</span>
+                  </div>
+                  {liveData[api.slug] ? (
+                    <p className="text-sm text-white/70 font-medium">{liveData[api.slug]}</p>
+                  ) : (
+                    <div className="h-4 bg-white/5 rounded animate-pulse w-3/4" />
+                  )}
                 </div>
-                {liveData[item.id] ? (
-                  <p className="text-sm text-white/70 font-medium">{liveData[item.id]}</p>
-                ) : (
-                  <div className="h-4 bg-white/5 rounded animate-pulse w-3/4" />
-                )}
-              </div>
-            ))}
+              )
+            })}
           </div>
         </div>
       </section>
