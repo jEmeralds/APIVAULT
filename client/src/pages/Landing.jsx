@@ -2,162 +2,10 @@
 import { useEffect, useState, useRef } from 'react'
 import { useNavigate } from 'react-router-dom'
 
-const BASE = import.meta.env.VITE_API_URL || 'https://api.apivault.uk'
-// Demo key for landing page live calls — read-only, low-credit account
-// This is intentionally a public demo key, not a user's real key
+const BASE     = import.meta.env.VITE_API_URL || 'https://api.apivault.uk'
 const DEMO_KEY = import.meta.env.VITE_DEMO_VAULT_KEY || 'a27907ec-94cd-47f9-8b8f-458120a11154'
 
-// ─── Demo Steps ───────────────────────────────────────────────────────────
-
-const STEPS = [
-  {
-    id: 1,
-    label: 'Sign up',
-    title: 'Create your free account',
-    desc: "Go to APIvault, enter your email and password. Admin approves your account — usually within minutes. No credit card needed to start.",
-    type: 'visual',
-    visual: 'signup',
-    code: null,
-  },
-  {
-    id: 2,
-    label: 'Get your key',
-    title: 'Copy your vault key',
-    desc: "After approval, open the Billing tab. Click Reveal & copy. This one key is all you will ever need — it works for every API in the vault.",
-    type: 'visual',
-    visual: 'key',
-    code: `// Store your vault key once — use it everywhere
-const VAULT_KEY = 'sk-vault-xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx'
-const BASE_URL  = 'https://api.apivault.uk'`,
-  },
-  {
-    id: 3,
-    label: 'Call NewsAPI',
-    title: 'Fetch live news headlines',
-    desc: "Go to Marketplace, click NewsAPI, copy the snippet. The code is already filled with your key. Run it — you get real headlines instantly.",
-    type: 'live',
-    endpoint: '/proxy/newsapi/top-headlines?country=us&pageSize=3',
-    render: (d) => d?.articles?.slice(0, 3).map(a => ({
-      label: a.source?.name || 'News',
-      value: a.title?.slice(0, 80) + (a.title?.length > 80 ? '...' : ''),
-    })),
-    code: `const res = await fetch(
-  BASE_URL + '/proxy/newsapi/top-headlines?country=us&pageSize=3',
-  { headers: { 'x-vault-key': VAULT_KEY } }
-)
-const { articles } = await res.json()
-// → Live US news headlines`,
-  },
-  {
-    id: 4,
-    label: 'Add Exchange Rates',
-    title: 'Same key — different API',
-    desc: "No new account. No new key. Just change the endpoint. Call Exchange Rates API with the exact same vault key and get live currency data.",
-    type: 'live',
-    endpoint: '/proxy/exchangerates/latest/KES',
-    render: (d) => d?.rates ? [
-      { label: 'USD', value: `1 KES = ${d.rates.USD?.toFixed(5)} USD` },
-      { label: 'EUR', value: `1 KES = ${d.rates.EUR?.toFixed(5)} EUR` },
-      { label: 'GBP', value: `1 KES = ${d.rates.GBP?.toFixed(5)} GBP` },
-    ] : null,
-    code: `// Same key — just change the endpoint
-const res = await fetch(
-  BASE_URL + '/proxy/exchangerates/latest/KES',
-  { headers: { 'x-vault-key': VAULT_KEY } }  // same key!
-)
-const { rates } = await res.json()
-// → 1 KES = 0.00775 USD`,
-  },
-  {
-    id: 5,
-    label: 'Add Country Data',
-    title: 'Third API — still one key',
-    desc: "Add REST Countries to your app. Pull population, capitals, currencies, flags — all with the same single vault key.",
-    type: 'live',
-    endpoint: '/proxy/restcountries/name/kenya',
-    render: (d) => {
-      const k = Array.isArray(d) ? d[0] : d
-      return k ? [
-        { label: 'Country', value: `${k.flag || '🇰🇪'} ${k.name?.common} — ${k.name?.official}` },
-        { label: 'Population', value: `${(k.population / 1e6).toFixed(1)}M people` },
-        { label: 'Capital', value: `${k.capital?.[0]} · Currency: KES` },
-      ] : null
-    },
-    code: `// Third API — still the same key
-const res = await fetch(
-  BASE_URL + '/proxy/restcountries/name/kenya',
-  { headers: { 'x-vault-key': VAULT_KEY } }  // same key!
-)
-const [kenya] = await res.json()
-// → { name, population, capital, flag... }`,
-  },
-  {
-    id: 6,
-    label: 'Ship it',
-    title: "You just built a data dashboard",
-    desc: "Three live APIs. One key. One account. One line of integration code per API. That is what APIvault gives you — more time building, less time managing.",
-    type: 'summary',
-    code: `// Your complete app — 3 APIs, 1 key, ~10 lines
-const H = { headers: { 'x-vault-key': VAULT_KEY } }
-
-const [news, rates, country] = await Promise.all([
-  fetch(BASE_URL + '/proxy/newsapi/top-headlines?country=ke', H).then(r => r.json()),
-  fetch(BASE_URL + '/proxy/exchangerates/latest/KES', H).then(r => r.json()),
-  fetch(BASE_URL + '/proxy/restcountries/name/kenya', H).then(r => r.json()),
-])
-
-// Build your UI with real live data ✓`,
-  },
-]
-
-// ── Updated API list reflecting actual registry ───────────────────────────
-const APIS = [
-  // Free & live
-  { name: 'Exchange Rates',    cat: 'finance',  price: 'Free',   live: true  },
-  { name: 'REST Countries',    cat: 'data',     price: 'Free',   live: true  },
-  { name: 'IP Geolocation',    cat: 'data',     price: 'Free',   live: true  },
-  { name: 'Open Meteo',        cat: 'geo',      price: 'Free',   live: true  },
-  { name: 'Nominatim Geocoding',cat:'geo',      price: 'Free',   live: true  },
-  { name: 'World Time API',    cat: 'geo',      price: 'Free',   live: true  },
-  { name: 'NewsAPI',           cat: 'data',     price: '$0.001', live: true  },
-  { name: 'OpenWeather',       cat: 'data',     price: '$0.001', live: true  },
-  { name: 'GitHub API',        cat: 'dev',      price: 'Free',   live: true  },
-  { name: 'Dictionary API',    cat: 'dev',      price: 'Free',   live: true  },
-  { name: 'JokeAPI',           cat: 'dev',      price: 'Free',   live: true  },
-  { name: 'Chuck Norris',      cat: 'dev',      price: 'Free',   live: true  },
-  { name: 'DummyJSON',         cat: 'dev',      price: 'Free',   live: true  },
-  { name: 'HTTPBin',           cat: 'dev',      price: 'Free',   live: true  },
-  { name: 'Faker API',         cat: 'dev',      price: 'Free',   live: true  },
-  { name: 'Lorem Picsum',      cat: 'dev',      price: 'Free',   live: true  },
-  { name: 'PokéAPI',           cat: 'data',     price: 'Free',   live: true  },
-  { name: 'SpaceX Data',       cat: 'data',     price: 'Free',   live: true  },
-  { name: 'Rick & Morty',      cat: 'data',     price: 'Free',   live: true  },
-  { name: 'Random User',       cat: 'data',     price: 'Free',   live: true  },
-  { name: 'NASA Open Data',    cat: 'data',     price: 'Free',   live: true  },
-  { name: 'Cat Facts',         cat: 'data',     price: 'Free',   live: true  },
-  { name: 'Dog API',           cat: 'data',     price: 'Free',   live: true  },
-  { name: 'Advice Slip',       cat: 'data',     price: 'Free',   live: true  },
-  { name: 'Open Library',      cat: 'data',     price: 'Free',   live: true  },
-  { name: 'Open Trivia',       cat: 'data',     price: 'Free',   live: true  },
-  { name: 'Agify',             cat: 'data',     price: 'Free',   live: true  },
-  { name: 'CoinGecko',         cat: 'finance',  price: 'Free',   live: true  },
-  { name: 'Frankfurter Forex', cat: 'finance',  price: 'Free',   live: true  },
-  { name: 'Fear & Greed',      cat: 'finance',  price: 'Free',   live: true  },
-  { name: 'Open FDA',          cat: 'health',   price: 'Free',   live: true  },
-  { name: 'iTunes Search',     cat: 'media',    price: 'Free',   live: true  },
-  // Paid & live
-  { name: 'Claude (Anthropic)',cat: 'ai',       price: '$0.005', live: true  },
-  // Coming soon
-  { name: 'GPT-4o',            cat: 'ai',       price: '$0.008', live: false },
-  { name: 'Gemini Flash',      cat: 'ai',       price: '$0.002', live: false },
-  { name: 'HeyGen Video',      cat: 'ai',       price: '$0.600', live: false },
-  { name: 'ElevenLabs Voice',  cat: 'ai',       price: '$0.045', live: false },
-  { name: "Africa's Talking",  cat: 'comms',    price: '$0.005', live: false },
-  { name: 'Twilio SMS',        cat: 'comms',    price: '$0.008', live: false },
-  { name: 'M-Pesa',            cat: 'payments', price: 'Free',   live: false },
-  { name: 'Flutterwave',       cat: 'payments', price: '$0.010', live: false },
-]
-
+// ── Category colours ──────────────────────────────────────────────────────────
 const CAT = {
   ai:       { bg: 'rgba(167,139,250,0.15)', text: '#a78bfa' },
   data:     { bg: 'rgba(251,191,36,0.15)',  text: '#fbbf24' },
@@ -170,246 +18,127 @@ const CAT = {
   media:    { bg: 'rgba(232,121,249,0.15)', text: '#e879f9' },
 }
 
-const FEATURES = [
+// ── APIs shown on landing ─────────────────────────────────────────────────────
+const APIS = [
+  { name: 'Exchange Rates',    cat: 'finance',  price: 'Free',   live: true  },
+  { name: 'REST Countries',    cat: 'data',     price: 'Free',   live: true  },
+  { name: 'IP Geolocation',    cat: 'data',     price: 'Free',   live: true  },
+  { name: 'Open Meteo',        cat: 'geo',      price: 'Free',   live: true  },
+  { name: 'NewsAPI',           cat: 'data',     price: '$0.001', live: true  },
+  { name: 'OpenWeather',       cat: 'data',     price: '$0.001', live: true  },
+  { name: 'GitHub API',        cat: 'dev',      price: 'Free',   live: true  },
+  { name: 'JokeAPI',           cat: 'dev',      price: 'Free',   live: true  },
+  { name: 'Chuck Norris',      cat: 'dev',      price: 'Free',   live: true  },
+  { name: 'PokeAPI',           cat: 'data',     price: 'Free',   live: true  },
+  { name: 'SpaceX Data',       cat: 'data',     price: 'Free',   live: true  },
+  { name: 'Cat Facts',         cat: 'data',     price: 'Free',   live: true  },
+  { name: 'Advice Slip',       cat: 'data',     price: 'Free',   live: true  },
+  { name: 'CoinGecko',         cat: 'finance',  price: 'Free',   live: true  },
+  { name: 'Frankfurter Forex', cat: 'finance',  price: 'Free',   live: true  },
+  { name: 'Open FDA',          cat: 'health',   price: 'Free',   live: true  },
+  { name: 'Claude (Anthropic)',cat: 'ai',       price: '$0.005', live: true  },
+  { name: 'GPT-4o',            cat: 'ai',       price: '$0.008', live: false },
+  { name: 'Gemini Flash',      cat: 'ai',       price: '$0.002', live: false },
+  { name: 'HeyGen Video',      cat: 'ai',       price: '$0.600', live: false },
+  { name: "Africa's Talking",  cat: 'comms',    price: '$0.005', live: false },
+  { name: 'Twilio SMS',        cat: 'comms',    price: '$0.008', live: false },
+  { name: 'M-Pesa',            cat: 'payments', price: 'Free',   live: false },
+  { name: 'Flutterwave',       cat: 'payments', price: '$0.010', live: false },
+]
+
+// ── Live demo calls ───────────────────────────────────────────────────────────
+const DEMOS = [
   {
-    icon: '🔑',
-    title: 'One key for everything',
-    body: "Stop juggling API keys. One vault key works across every API in our catalogue. Learn the pattern once, use it forever.",
-    detail: "x-vault-key: sk-vault-your-key",
+    id: 'rates',
+    label: 'Exchange Rates',
+    cat: 'finance',
+    url: '/proxy/exchangerates/latest/KES',
+    parse: d => d?.rates ? [
+      { k: 'USD', v: `1 KES = ${d.rates.USD?.toFixed(5)}` },
+      { k: 'EUR', v: `1 KES = ${d.rates.EUR?.toFixed(5)}` },
+      { k: 'GBP', v: `1 KES = ${d.rates.GBP?.toFixed(5)}` },
+    ] : null,
   },
   {
-    icon: '💳',
-    title: 'Pay as you go in KES',
-    body: "Top up your credits with M-Pesa or Paystack. No monthly subscription. No USD conversion. Credits never expire.",
-    detail: "Starting from $1 · No commitment",
+    id: 'country',
+    label: 'REST Countries',
+    cat: 'data',
+    url: '/proxy/restcountries/name/kenya',
+    parse: d => {
+      const k = Array.isArray(d) ? d[0] : d
+      return k ? [
+        { k: 'Country', v: `${k.flag || '🇰🇪'} ${k.name?.common}` },
+        { k: 'Population', v: `${(k.population / 1e6).toFixed(1)}M` },
+        { k: 'Capital', v: k.capital?.[0] },
+      ] : null
+    },
   },
   {
-    icon: '⚡',
-    title: 'Instant integration',
-    body: "No SDK to install. No complex setup. Works with fetch, axios, requests — any HTTP client in any language.",
-    detail: "JavaScript · Python · cURL · PHP",
-  },
-  {
-    icon: '📊',
-    title: 'Full usage visibility',
-    body: "See every API call you make, every credit spent, which APIs you use most. Real-time dashboard included.",
-    detail: "Logs · Charts · Per-API breakdown",
-  },
-  {
-    icon: '🛡️',
-    title: 'Your master keys stay hidden',
-    body: "API master keys never leave our servers. Your code never touches them. You just use your vault key.",
-    detail: "Zero exposure to upstream credentials",
-  },
-  {
-    icon: '🌍',
-    title: 'Built for African developers',
-    body: "M-Pesa, Paystack, and Africa-specific APIs coming. Designed for developers building in and for Africa.",
-    detail: "Kenya · Nigeria · Ghana · Uganda",
+    id: 'joke',
+    label: 'JokeAPI',
+    cat: 'dev',
+    url: '/proxy/jokeapi/joke/Programming?type=single',
+    parse: d => d?.joke ? [{ k: 'Joke', v: d.joke.slice(0, 120) }] : null,
   },
 ]
 
-// ─── Sub-components ───────────────────────────────────────────────────────
-
-function SignupVisual() {
-  return (
-    <div className="bg-[#111] border border-white/10 rounded-2xl p-5 max-w-sm mx-auto">
-      <div className="flex items-center gap-2 mb-5">
-        <div className="w-5 h-5 bg-[#34d399] rounded-md flex items-center justify-center">
-          <div className="w-1.5 h-1.5 bg-[#080808] rounded-sm" />
-        </div>
-        <span className="text-sm font-bold">APIvault — Create account</span>
-      </div>
-      <div className="space-y-3">
-        <div>
-          <div className="text-xs text-white/40 mb-1.5">Email address</div>
-          <div className="bg-white/5 border border-white/10 rounded-lg px-3 py-2.5 text-xs text-white/30 font-mono">you@company.com</div>
-        </div>
-        <div>
-          <div className="text-xs text-white/40 mb-1.5">Password</div>
-          <div className="bg-white/5 border border-white/10 rounded-lg px-3 py-2.5 text-xs text-white/30">••••••••••••</div>
-        </div>
-        <div className="bg-[#34d399] rounded-lg py-2.5 text-center text-sm font-bold text-[#080808]">
-          Create free account
-        </div>
-        <div className="flex items-center gap-2 bg-[#34d399]/10 border border-[#34d399]/20 rounded-lg p-3">
-          <div className="w-1.5 h-1.5 rounded-full bg-[#34d399] flex-shrink-0" />
-          <span className="text-xs text-[#34d399]">Account created — pending admin approval</span>
-        </div>
-      </div>
-    </div>
-  )
-}
-
-function KeyVisual() {
-  const [revealed, setRevealed] = useState(false)
-  return (
-    <div className="bg-[#111] border border-white/10 rounded-2xl p-5 max-w-sm mx-auto">
-      <div className="flex items-center gap-2 mb-5">
-        <div className="w-5 h-5 bg-[#34d399] rounded-md flex items-center justify-center">
-          <div className="w-1.5 h-1.5 bg-[#080808] rounded-sm" />
-        </div>
-        <span className="text-sm font-bold">Billing</span>
-        <span className="ml-auto text-xs font-mono text-[#34d399]">$5.00 credits</span>
-      </div>
-      <div className="space-y-3">
-        <div className="bg-white/3 border border-white/8 rounded-xl p-3">
-          <div className="text-xs text-white/40 mb-1">Your vault key</div>
-          <div className="flex items-center gap-2">
-            <div className="flex-1 font-mono text-xs text-white/60 truncate">
-              {revealed ? 'sk-vault-xxxxxxxx-xxxx-xxxx...' : 'sk-vault-••••••••••••••••••••'}
-            </div>
-            <button onClick={() => setRevealed(true)}
-              className="bg-[#34d399] text-[#080808] text-xs px-2.5 py-1.5 rounded-lg font-bold whitespace-nowrap flex-shrink-0">
-              {revealed ? '✓ Copied' : 'Reveal'}
-            </button>
-          </div>
-        </div>
-        <div className="bg-amber-500/10 border border-amber-500/20 rounded-lg p-2.5">
-          <div className="text-xs text-amber-400">🔒 Keep this key secret. One key. Every API.</div>
-        </div>
-        <div className="grid grid-cols-3 gap-2">
-          {[5, 10, 25].map(n => (
-            <div key={n} className="bg-white/3 border border-white/8 rounded-lg py-2 text-center">
-              <div className="text-xs text-white/30">Add</div>
-              <div className="text-sm font-bold">${n}</div>
-            </div>
-          ))}
-        </div>
-      </div>
-    </div>
-  )
-}
-
-function SummaryVisual() {
-  return (
-    <div className="bg-[#111] border border-white/10 rounded-2xl p-5 max-w-sm mx-auto">
-      <div className="flex items-center justify-between mb-4">
-        <div className="flex items-center gap-2">
-          <div className="w-5 h-5 bg-[#34d399] rounded-md flex items-center justify-center">
-            <div className="w-1.5 h-1.5 bg-[#080808] rounded-sm" />
-          </div>
-          <span className="text-sm font-bold">Kenya Dashboard</span>
-        </div>
-        <div className="flex items-center gap-1.5 text-xs text-[#34d399]">
-          <div className="w-1.5 h-1.5 rounded-full bg-[#34d399] animate-pulse" />
-          Live
-        </div>
-      </div>
-      <div className="space-y-2.5">
-        {[
-          { icon: '📰', label: 'Top News', val: 'Meta stock falls · PSG vs Bayern', color: '#60a5fa' },
-          { icon: '💱', label: 'KES Rate', val: '1 KES = 0.00775 USD', color: '#34d399' },
-          { icon: '🇰🇪', label: 'Country', val: 'Kenya · Pop: 53.3M · Nairobi', color: '#fbbf24' },
-        ].map(r => (
-          <div key={r.label} className="flex items-center gap-3 bg-white/3 border border-white/6 rounded-xl p-3">
-            <span className="text-lg">{r.icon}</span>
-            <div>
-              <div className="text-xs font-medium" style={{ color: r.color }}>{r.label}</div>
-              <div className="text-xs text-white/50 mt-0.5">{r.val}</div>
-            </div>
-          </div>
-        ))}
-        <div className="text-center pt-1">
-          <span className="mono text-xs text-white/25">3 APIs · 1 vault key · built in 5 min</span>
-        </div>
-      </div>
-    </div>
-  )
-}
-
-function CopyBtn({ text }) {
-  const [done, setDone] = useState(false)
-  return (
-    <button onClick={() => { navigator.clipboard?.writeText(text); setDone(true); setTimeout(() => setDone(false), 2000) }}
-      className="mono text-xs px-2.5 py-1 border border-white/10 text-white/30 rounded-lg hover:text-white/60 hover:border-white/25 transition-colors">
-      {done ? '✓ Copied' : 'Copy'}
-    </button>
-  )
-}
-
-// ─── Main Landing ─────────────────────────────────────────────────────────
-
 export function Landing() {
   const nav = useNavigate()
-  const [step, setStep]         = useState(1)
-  const [results, setResults]   = useState({})
-  const [loading, setLoading]   = useState({})
-  const [done, setDone]         = useState({})
-  const [liveData, setLiveData] = useState({})
-
+  const [demoData,   setDemoData]   = useState({})
+  const [demoLoading, setDemoLoading] = useState({})
+  const [activeDemo, setActiveDemo] = useState('rates')
+  const [liveData,   setLiveData]   = useState({})
   const isLoggedIn = !!localStorage.getItem('token')
   const userRole   = localStorage.getItem('role')
 
-  const liveCount = APIS.filter(a => a.live).length
-  const totalCount = APIS.length
+  function goLogin()  { nav('/login') }
+  function goSignup() { nav('/login?mode=signup') }
+  function goDash()   { nav(userRole === 'admin' ? '/admin' : '/app') }
+  function goLogout() { localStorage.clear(); nav('/') }
 
-  // Auto-run background live cards
+  // Auto-run background demos
   useEffect(() => {
-    const demos = [
+    const bg = [
       { id: 'rates',   url: '/proxy/exchangerates/latest/KES',            parse: d => d?.rates ? `1 KES = $${d.rates.USD?.toFixed(5)} USD` : null },
-      { id: 'joke',    url: '/proxy/jokeapi/joke/Programming?type=single', parse: d => d?.joke?.slice(0, 100) || null },
+      { id: 'joke',    url: '/proxy/jokeapi/joke/Programming?type=single', parse: d => d?.joke?.slice(0, 80) || null },
       { id: 'country', url: '/proxy/restcountries/name/kenya',             parse: d => { const k = Array.isArray(d) ? d[0] : d; return k ? `${k.flag || '🇰🇪'} ${k.name?.common} · Pop ${(k.population/1e6).toFixed(1)}M` : null } },
     ]
-    demos.forEach(async d => {
+    bg.forEach(async d => {
       try {
-        const res  = await fetch(`${BASE}${d.url}`, { headers: { 'x-vault-key': DEMO_KEY } })
-        const data = await res.json()
-        const val  = d.parse(data)
-        if (val) setLiveData(l => ({ ...l, [d.id]: val }))
+        const r = await fetch(`${BASE}${d.url}`, { headers: { 'x-vault-key': DEMO_KEY } })
+        const j = await r.json()
+        const v = d.parse(j)
+        if (v) setLiveData(p => ({ ...p, [d.id]: v }))
       } catch {}
     })
   }, [])
 
-  async function runStep(s) {
-    if (s.type !== 'live') return
-    setLoading(l => ({ ...l, [s.id]: true }))
+  // Run selected demo
+  async function runDemo(demo) {
+    if (demoData[demo.id]) { setActiveDemo(demo.id); return }
+    setActiveDemo(demo.id)
+    setDemoLoading(p => ({ ...p, [demo.id]: true }))
     try {
-      const res      = await fetch(`${BASE}${s.endpoint}`, { headers: { 'x-vault-key': DEMO_KEY } })
-      const data     = await res.json()
-      const rendered = s.render(data)
-      setResults(r => ({ ...r, [s.id]: rendered }))
-      setDone(d => ({ ...d, [s.id]: true }))
-    } catch (e) {
-      setResults(r => ({ ...r, [s.id]: [{ label: 'Error', value: e.message }] }))
-    }
-    setLoading(l => ({ ...l, [s.id]: false }))
+      const r = await fetch(`${BASE}${demo.url}`, { headers: { 'x-vault-key': DEMO_KEY } })
+      const j = await r.json()
+      const parsed = demo.parse(j)
+      setDemoData(p => ({ ...p, [demo.id]: parsed }))
+    } catch {}
+    setDemoLoading(p => ({ ...p, [demo.id]: false }))
   }
 
-  function next() {
-    const cur = STEPS.find(s => s.id === step)
-    if (cur?.type === 'live' && !done[cur.id]) {
-      runStep(cur).then(() => setStep(s => Math.min(STEPS.length, s + 1)))
-    } else {
-      setStep(s => Math.min(STEPS.length, s + 1))
-    }
-  }
-
-  // Navigate to login with signup tab pre-selected
-  function goSignup() { nav('/login?mode=signup') }
-  function goLogin()  { nav('/login') }
-  function goDash()   { nav(userRole === 'admin' ? '/admin' : '/app') }
-
-  const cur = STEPS.find(s => s.id === step)
+  useEffect(() => { runDemo(DEMOS[0]) }, [])
 
   return (
     <div className="min-h-screen bg-[#050505] text-white overflow-x-hidden"
       style={{ fontFamily: "'IBM Plex Sans', 'Segoe UI', sans-serif" }}>
-
       <style>{`
         @import url('https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@300;400;500;600;700&family=IBM+Plex+Mono:wght@400;500&display=swap');
         .mono { font-family: 'IBM Plex Mono', monospace; }
         @keyframes fadeUp { from{opacity:0;transform:translateY(16px)} to{opacity:1;transform:translateY(0)} }
-        @keyframes glow-pulse { 0%,100%{box-shadow:0 0 20px rgba(52,211,153,0.2)} 50%{box-shadow:0 0 40px rgba(52,211,153,0.4)} }
         .fade-up { animation: fadeUp 0.5s ease forwards; opacity:0; }
-        .d1{animation-delay:.05s}.d2{animation-delay:.15s}.d3{animation-delay:.25s}.d4{animation-delay:.4s}
-        .grid-bg { background-image: linear-gradient(rgba(255,255,255,0.018) 1px,transparent 1px),linear-gradient(90deg,rgba(255,255,255,0.018) 1px,transparent 1px); background-size:56px 56px; }
-        .glow { animation: glow-pulse 3s ease infinite; }
-        ::-webkit-scrollbar{width:3px;height:3px}
-        ::-webkit-scrollbar-thumb{background:rgba(255,255,255,0.08);border-radius:2px}
-        .step-btn { transition: all 0.2s; }
-        .step-btn.active { background: rgba(52,211,153,0.08); border-color: rgba(52,211,153,0.35); }
-        .step-btn.completed { border-color: rgba(52,211,153,0.2); }
+        .d1{animation-delay:.05s}.d2{animation-delay:.15s}.d3{animation-delay:.25s}.d4{animation-delay:.4s}.d5{animation-delay:.55s}
+        ::-webkit-scrollbar{width:3px} ::-webkit-scrollbar-thumb{background:rgba(255,255,255,0.08);border-radius:2px}
       `}</style>
 
       {/* ── Nav ── */}
@@ -423,7 +152,7 @@ export function Landing() {
             <span className="font-bold tracking-tight">APIvault</span>
             <span className="mono text-[10px] text-white/20 border border-white/10 px-1.5 py-0.5 rounded ml-0.5">beta</span>
           </button>
-          <div className="flex items-center gap-1 overflow-x-auto">
+          <div className="flex items-center gap-1">
             {[['Demo', '#demo'], ['Features', '#features'], ['APIs', '#apis']].map(([label, href]) => (
               <button key={label}
                 onClick={() => document.getElementById(href.slice(1))?.scrollIntoView({ behavior: 'smooth' })}
@@ -433,18 +162,15 @@ export function Landing() {
             ))}
             <div className="w-px h-4 bg-white/10 mx-1 hidden sm:block" />
             {isLoggedIn ? (
-              <button onClick={goDash}
-                className="text-xs bg-[#34d399] text-[#050505] px-4 py-2 rounded-lg font-bold hover:bg-[#6ee7b7] transition-colors ml-1">
-                Go to dashboard →
-              </button>
+              <>
+                <button onClick={goDash} className="text-xs bg-[#34d399] text-[#050505] px-4 py-2 rounded-lg font-bold hover:bg-[#6ee7b7] transition-colors">
+                  Dashboard →
+                </button>
+              </>
             ) : (
               <>
-                <button onClick={goLogin}
-                  className="text-xs text-white/50 hover:text-white px-3 py-1.5 transition-colors">
-                  Sign in
-                </button>
-                <button onClick={goSignup}
-                  className="text-xs bg-[#34d399] text-[#050505] px-4 py-2 rounded-lg font-bold hover:bg-[#6ee7b7] transition-colors ml-1">
+                <button onClick={goLogin} className="text-xs text-white/50 hover:text-white px-3 py-1.5 transition-colors">Sign in</button>
+                <button onClick={goSignup} className="text-xs bg-[#34d399] text-[#050505] px-4 py-2 rounded-lg font-bold hover:bg-[#6ee7b7] transition-colors ml-1">
                   Get started →
                 </button>
               </>
@@ -454,192 +180,194 @@ export function Landing() {
       </nav>
 
       {/* ── Hero ── */}
-      <section className="grid-bg pt-32 pb-16 px-5 max-w-6xl mx-auto">
-        <div className="fade-up d1 inline-flex items-center gap-2 border border-[#34d399]/25 bg-[#34d399]/6 rounded-full px-3.5 py-1.5 mb-7">
-          <div className="w-1.5 h-1.5 rounded-full bg-[#34d399] animate-pulse" />
-          <span className="mono text-xs text-[#34d399]">{liveCount} APIs live · gateway operational</span>
-        </div>
-
-        <h1 className="fade-up d2 text-5xl sm:text-6xl lg:text-[72px] font-bold leading-[1.04] tracking-tight mb-6 max-w-4xl">
-          Stop managing<br />
-          <span style={{ color: '#34d399' }}>dozens of API keys.</span>
-        </h1>
-
-        <p className="fade-up d3 text-white/50 text-xl max-w-2xl leading-relaxed mb-6">
-          APIvault is a shared API gateway. Get <strong className="text-white/80">one vault key</strong> that unlocks every API — NewsAPI, Exchange Rates, GitHub, OpenWeather, and more. Pay per call. No subscriptions.
-        </p>
-
-        <div className="fade-up d3 flex flex-col gap-1.5 mb-10">
-          {['NewsAPI account + key', 'OpenWeather account + key', 'Exchange Rates account + key'].map(item => (
-            <div key={item} className="inline-flex items-center gap-3 w-fit">
-              <div className="w-4 h-px bg-red-500/50" />
-              <span className="text-white/30 text-sm line-through">{item}</span>
+      <section className="pt-32 pb-20 px-5 max-w-6xl mx-auto">
+        <div className="grid lg:grid-cols-2 gap-16 items-center">
+          <div>
+            {/* Pain statement */}
+            <div className="inline-flex items-center gap-2 bg-white/5 border border-white/10 rounded-full px-4 py-1.5 text-xs text-white/50 mb-8 fade-up d1">
+              <span className="w-1.5 h-1.5 bg-[#34d399] rounded-full" />
+              49 APIs · One key · No setup
             </div>
-          ))}
-          <div className="inline-flex items-center gap-3 w-fit mt-2">
-            <div className="w-4 h-px bg-[#34d399]" />
-            <span className="text-[#34d399] text-sm font-semibold">APIvault — one key for all of them ✓</span>
+            <h1 className="text-4xl sm:text-5xl font-bold leading-[1.1] mb-6 fade-up d2">
+              Stop managing<br/>
+              <span className="text-white/25 line-through decoration-red-500/60">ten API keys.</span><br/>
+              <span className="text-[#34d399]">Use one.</span>
+            </h1>
+            <p className="text-white/40 text-lg leading-relaxed mb-8 max-w-md fade-up d3">
+              Every API you need — weather, news, AI, crypto, geocoding — behind a single vault key. Sign up once. Build everything.
+            </p>
+            <div className="flex items-center gap-3 fade-up d4">
+              {isLoggedIn ? (
+                <button onClick={goDash} className="px-6 py-3 bg-[#34d399] text-[#050505] rounded-xl font-bold hover:bg-[#6ee7b7] transition-colors">
+                  Open dashboard →
+                </button>
+              ) : (
+                <>
+                  <button onClick={goSignup} className="px-6 py-3 bg-[#34d399] text-[#050505] rounded-xl font-bold hover:bg-[#6ee7b7] transition-colors">
+                    Start for free →
+                  </button>
+                  <button onClick={goLogin} className="px-6 py-3 text-white/40 hover:text-white transition-colors text-sm">
+                    Sign in
+                  </button>
+                </>
+              )}
+            </div>
+            <p className="text-white/20 text-xs mt-4 fade-up d5">Free APIs work immediately · No credit card needed · Paid APIs from $1</p>
           </div>
-        </div>
 
-        <div className="fade-up d4 flex flex-wrap gap-3">
-          <button onClick={goSignup}
-            className="bg-[#34d399] text-[#050505] px-6 py-3 rounded-xl font-bold hover:bg-[#6ee7b7] transition-all text-sm glow">
-            Start free — no card needed →
-          </button>
-          <button onClick={() => document.getElementById('demo')?.scrollIntoView({ behavior: 'smooth' })}
-            className="border border-white/12 text-white/50 px-6 py-3 rounded-xl font-medium hover:border-white/30 hover:text-white transition-all text-sm">
-            Watch the demo ↓
-          </button>
+          {/* Live ticker — 3 APIs running right now */}
+          <div className="space-y-3 fade-up d3">
+            <p className="text-xs text-white/25 mono mb-4">// Three different APIs. Same key. Right now.</p>
+            {[
+              { id: 'rates',   label: 'exchangerates',  color: '#34d399' },
+              { id: 'country', label: 'restcountries',  color: '#60a5fa' },
+              { id: 'joke',    label: 'jokeapi',        color: '#fbbf24' },
+            ].map(item => (
+              <div key={item.id} className="bg-white/[0.03] border border-white/8 rounded-xl p-4">
+                <div className="flex items-center gap-2 mb-2">
+                  <span className="w-1.5 h-1.5 rounded-full animate-pulse" style={{ background: item.color }}/>
+                  <span className="mono text-[11px] text-white/30">/proxy/{item.label}</span>
+                  <span className="ml-auto mono text-[10px] text-white/20 border border-white/10 px-1.5 py-0.5 rounded">x-vault-key: ****</span>
+                </div>
+                {liveData[item.id] ? (
+                  <p className="text-sm text-white/70 font-medium">{liveData[item.id]}</p>
+                ) : (
+                  <div className="h-4 bg-white/5 rounded animate-pulse w-3/4" />
+                )}
+              </div>
+            ))}
+          </div>
         </div>
       </section>
 
-      {/* ── Live ticker ── */}
-      <div className="border-y border-white/5 bg-white/[0.01] py-4 px-5">
-        <div className="max-w-6xl mx-auto grid grid-cols-1 sm:grid-cols-3 gap-3">
-          {[
-            { id: 'rates',   label: '💱 Live exchange rate', fallback: 'Fetching...' },
-            { id: 'joke',    label: '😄 Programming joke',   fallback: 'Fetching...' },
-            { id: 'country', label: '🌍 Country data',        fallback: 'Fetching...' },
-          ].map(d => (
-            <div key={d.id} className="flex items-start gap-2.5">
-              <div className="w-1.5 h-1.5 rounded-full bg-[#34d399] flex-shrink-0 mt-1.5 animate-pulse" />
-              <div>
-                <div className="mono text-[10px] text-white/25 mb-0.5">{d.label}</div>
-                <div className="text-xs text-white/60 leading-snug">{liveData[d.id] || d.fallback}</div>
+      {/* ── The problem ── */}
+      <section className="py-20 px-5 border-t border-white/5">
+        <div className="max-w-5xl mx-auto">
+          <div className="text-center mb-14">
+            <p className="text-white/30 text-sm mb-3">The old way</p>
+            <h2 className="text-3xl font-bold text-white/80">Building with APIs is painful</h2>
+          </div>
+          <div className="grid sm:grid-cols-3 gap-4 mb-16">
+            {[
+              { pain: '10+ signups', desc: 'A new account for every API provider you want to use.' },
+              { pain: '10+ keys',    desc: 'A separate API key to store, rotate, and protect.' },
+              { pain: '10+ bills',   desc: 'A separate subscription or credit account to manage.' },
+            ].map(item => (
+              <div key={item.pain} className="bg-red-950/20 border border-red-900/20 rounded-2xl p-5">
+                <p className="text-red-400 font-bold text-lg mb-1">{item.pain}</p>
+                <p className="text-white/30 text-sm">{item.desc}</p>
               </div>
-            </div>
-          ))}
-        </div>
-      </div>
-
-      {/* ── Interactive Demo ── */}
-      <section id="demo" className="py-20 px-5 max-w-6xl mx-auto">
-        <div className="mono text-xs text-white/25 mb-2">// interactive walkthrough</div>
-        <h2 className="text-3xl sm:text-4xl font-bold mb-2 tracking-tight">
-          From signup to live data<br />in 5 minutes
-        </h2>
-        <p className="text-white/40 mb-10 max-w-xl text-base">
-          Follow the steps below. Every Run button makes a real API call through the gateway — this is live data, not a simulation.
-        </p>
-
-        <div className="grid grid-cols-1 lg:grid-cols-12 gap-5">
-          <div className="lg:col-span-4">
-            <div className="space-y-2">
-              {STEPS.map(s => (
-                <button key={s.id} onClick={() => setStep(s.id)}
-                  className={`step-btn w-full text-left px-4 py-3.5 rounded-xl border transition-all
-                    ${step === s.id ? 'active border-[#34d399]/35' : done[s.id] ? 'completed border-[#34d399]/15' : 'border-white/6 hover:border-white/15'}`}>
-                  <div className="flex items-center gap-3">
-                    <div className={`w-7 h-7 rounded-full flex items-center justify-center text-xs font-bold flex-shrink-0 transition-all ${
-                      done[s.id] ? 'bg-[#34d399] text-[#050505]'
-                        : step === s.id ? 'bg-[#34d399] text-[#050505]'
-                        : 'bg-white/6 text-white/25'
-                    }`}>
-                      {done[s.id] ? '✓' : s.id}
-                    </div>
-                    <div>
-                      <div className={`text-sm font-semibold ${step === s.id ? 'text-white' : done[s.id] ? 'text-[#34d399]' : 'text-white/40'}`}>
-                        {s.label}
-                      </div>
-                      {step === s.id && (
-                        <div className="text-xs text-white/30 mt-0.5 leading-snug">{s.title}</div>
-                      )}
-                    </div>
-                  </div>
-                </button>
-              ))}
-            </div>
-            <button onClick={isLoggedIn ? goDash : goSignup}
-              className="w-full mt-4 py-3 bg-[#34d399] text-[#050505] rounded-xl font-bold text-sm hover:bg-[#6ee7b7] transition-colors">
-              {isLoggedIn ? 'Go to dashboard →' : 'Start building free →'}
-            </button>
+            ))}
           </div>
 
-          <div className="lg:col-span-8">
-            <div className="border border-white/8 rounded-2xl overflow-hidden h-full">
-              <div className="px-5 py-4 border-b border-white/6 bg-white/[0.015]">
-                <div className="flex items-center gap-2 mb-1">
-                  <div className="mono text-[10px] text-white/25">Step {cur.id} of {STEPS.length}</div>
-                  <div className="flex gap-1 ml-auto">
-                    {STEPS.map(s => (
-                      <button key={s.id} onClick={() => setStep(s.id)}
-                        className={`h-1.5 rounded-full transition-all ${
-                          step === s.id ? 'w-5 bg-[#34d399]' : done[s.id] ? 'w-1.5 bg-[#34d399]/40' : 'w-1.5 bg-white/10'
-                        }`} />
+          <div className="text-center mb-10">
+            <p className="text-white/30 text-sm mb-3">The APIvault way</p>
+            <h2 className="text-3xl font-bold text-[#34d399]">One account. One key. Everything.</h2>
+          </div>
+          <div className="grid sm:grid-cols-3 gap-4">
+            {[
+              { win: '1 signup',  desc: 'Create one APIvault account. Access every API in the vault.' },
+              { win: '1 key',     desc: 'Your vault key works for every API. Learn the pattern once.' },
+              { win: '1 balance', desc: 'Top up credits with M-Pesa or card. One balance for all APIs.' },
+            ].map(item => (
+              <div key={item.win} className="bg-[#34d399]/5 border border-[#34d399]/20 rounded-2xl p-5">
+                <p className="text-[#34d399] font-bold text-lg mb-1">{item.win}</p>
+                <p className="text-white/40 text-sm">{item.desc}</p>
+              </div>
+            ))}
+          </div>
+        </div>
+      </section>
+
+      {/* ── How it works (4 steps) ── */}
+      <section id="demo" className="py-20 px-5 border-t border-white/5">
+        <div className="max-w-5xl mx-auto">
+          <div className="text-center mb-14">
+            <p className="text-white/30 text-sm mb-3">How it works</p>
+            <h2 className="text-3xl font-bold">In under 5 minutes</h2>
+          </div>
+
+          <div className="grid sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-16">
+            {[
+              { n: '1', title: 'Sign up',       desc: 'Create a free account. No credit card needed.' },
+              { n: '2', title: 'Get your key',  desc: 'Copy your vault key from the Billing tab.' },
+              { n: '3', title: 'Pick an API',   desc: 'Browse the marketplace. Click Use API.' },
+              { n: '4', title: 'Copy & paste',  desc: 'One snippet. Works in any language.' },
+            ].map(step => (
+              <div key={step.n} className="bg-white/[0.03] border border-white/8 rounded-2xl p-5">
+                <div className="w-8 h-8 rounded-lg bg-[#34d399]/10 border border-[#34d399]/20 flex items-center justify-center mono text-[#34d399] text-sm font-bold mb-3">{step.n}</div>
+                <p className="font-semibold text-white mb-1">{step.title}</p>
+                <p className="text-white/35 text-sm">{step.desc}</p>
+              </div>
+            ))}
+          </div>
+
+          {/* Live demo */}
+          <div className="bg-white/[0.02] border border-white/8 rounded-2xl overflow-hidden">
+            <div className="border-b border-white/5 px-5 py-3 flex items-center gap-4">
+              <p className="text-xs text-white/30 mono">// Try it live — real API calls, right now</p>
+              <div className="ml-auto flex gap-1">
+                {DEMOS.map(d => (
+                  <button key={d.id} onClick={() => runDemo(d)}
+                    className={`px-3 py-1 rounded-lg text-xs font-medium transition-all ${
+                      activeDemo === d.id ? 'bg-[#34d399]/15 text-[#34d399] border border-[#34d399]/30' : 'text-white/30 hover:text-white/60'
+                    }`}>
+                    {d.label}
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            <div className="grid md:grid-cols-2">
+              {/* Code */}
+              <div className="p-5 border-r border-white/5">
+                <p className="text-[10px] text-white/20 mono mb-3">The same code pattern for every API</p>
+                <div className="bg-black/40 rounded-xl p-4 text-xs mono leading-6">
+                  <span className="text-white/20">const </span>
+                  <span className="text-[#34d399]">VAULT_KEY</span>
+                  <span className="text-white/20"> = </span>
+                  <span className="text-amber-300">'sk-vault-your-key'</span>
+                  <br/><br/>
+                  <span className="text-white/20">const res = await </span>
+                  <span className="text-blue-300">fetch</span>
+                  <span className="text-white/20">(</span>
+                  <br/>
+                  <span className="text-white/20">  </span>
+                  <span className="text-amber-300">'/proxy/<span className="text-[#34d399]">{DEMOS.find(d=>d.id===activeDemo)?.label || 'api-name'}</span>/...'</span>
+                  <span className="text-white/20">,</span>
+                  <br/>
+                  <span className="text-white/20">  {'{ '}</span>
+                  <span className="text-purple-300">headers</span>
+                  <span className="text-white/20">{': { '}</span>
+                  <span className="text-amber-300">'x-vault-key'</span>
+                  <span className="text-white/20">: VAULT_KEY {'} }'}</span>
+                  <br/>
+                  <span className="text-white/20">)</span>
+                </div>
+              </div>
+
+              {/* Result */}
+              <div className="p-5">
+                <p className="text-[10px] text-white/20 mono mb-3">Live response</p>
+                {demoLoading[activeDemo] ? (
+                  <div className="space-y-2">
+                    {[1,2,3].map(i => <div key={i} className="h-4 bg-white/5 rounded animate-pulse" style={{width:`${60+i*15}%`}}/>)}
+                  </div>
+                ) : demoData[activeDemo] ? (
+                  <div className="space-y-2">
+                    {demoData[activeDemo].map((row, i) => (
+                      <div key={i} className="flex items-center gap-3">
+                        <span className="text-white/25 text-xs mono w-20 flex-shrink-0">{row.k}</span>
+                        <span className="text-[#34d399] text-sm font-medium">{row.v}</span>
+                      </div>
                     ))}
+                    <div className="mt-4 pt-3 border-t border-white/5 flex items-center gap-2">
+                      <span className="w-1.5 h-1.5 rounded-full bg-[#34d399]"/>
+                      <span className="text-[11px] text-white/25 mono">200 OK · real data · no auth setup</span>
+                    </div>
                   </div>
-                </div>
-                <div className="font-bold text-lg">{cur.title}</div>
-                <div className="text-sm text-white/45 mt-1 leading-relaxed">{cur.desc}</div>
-              </div>
-
-              <div className="p-5 border-b border-white/6 bg-[#0a0a0a]">
-                {cur.type === 'visual' && cur.visual === 'signup' && <SignupVisual />}
-                {cur.type === 'visual' && cur.visual === 'key'    && <KeyVisual />}
-                {cur.type === 'summary'                           && <SummaryVisual />}
-                {cur.type === 'live' && (
-                  <div className="space-y-3">
-                    <button onClick={() => runStep(cur)} disabled={loading[cur.id]}
-                      className="flex items-center gap-2.5 px-5 py-2.5 bg-indigo-600 text-white text-sm rounded-xl
-                        hover:bg-indigo-700 disabled:opacity-50 transition-colors font-semibold">
-                      {loading[cur.id]
-                        ? <><div className="w-3.5 h-3.5 border-2 border-white/30 border-t-white rounded-full animate-spin" /><span>Calling API...</span></>
-                        : <><span>▶</span><span>Run — make live API call</span></>
-                      }
-                    </button>
-                    {results[cur.id] ? (
-                      <div className="bg-[#34d399]/5 border border-[#34d399]/20 rounded-xl p-4">
-                        <div className="mono text-xs text-[#34d399] font-semibold mb-3 flex items-center gap-2">
-                          <div className="w-1.5 h-1.5 rounded-full bg-[#34d399]" />
-                          Live response — real data from API
-                        </div>
-                        <div className="space-y-2.5">
-                          {results[cur.id].map((r, i) => (
-                            <div key={i} className="flex items-start gap-3">
-                              <span className="mono text-[10px] text-white/25 mt-0.5 flex-shrink-0 w-12">{r.label}</span>
-                              <span className="text-sm text-white/75 leading-snug">{r.value}</span>
-                            </div>
-                          ))}
-                        </div>
-                      </div>
-                    ) : (
-                      <div className="border border-white/5 rounded-xl p-6 text-center">
-                        <div className="text-2xl mb-2">▶</div>
-                        <div className="text-xs text-white/20">Click Run to see live API data</div>
-                      </div>
-                    )}
-                  </div>
-                )}
-              </div>
-
-              {cur.code && (
-                <div className="border-b border-white/6">
-                  <div className="px-5 py-2.5 flex items-center justify-between bg-white/[0.01]">
-                    <span className="mono text-[10px] text-white/25">code</span>
-                    <CopyBtn text={cur.code} />
-                  </div>
-                  <div className="overflow-x-auto">
-                    <pre className="mono text-xs p-5 text-white/55 leading-relaxed">{cur.code}</pre>
-                  </div>
-                </div>
-              )}
-
-              <div className="px-5 py-3.5 flex items-center justify-between bg-white/[0.01]">
-                <button onClick={() => setStep(s => Math.max(1, s - 1))} disabled={step === 1}
-                  className="px-4 py-2 border border-white/8 text-white/35 text-xs rounded-lg hover:border-white/25 hover:text-white/60 disabled:opacity-20 transition-all">
-                  ← Back
-                </button>
-                {step < STEPS.length ? (
-                  <button onClick={next}
-                    className="px-5 py-2 bg-[#34d399] text-[#050505] text-xs rounded-lg font-bold hover:bg-[#6ee7b7] transition-colors">
-                    {cur.type === 'live' && !done[cur.id] ? 'Run & continue →' : 'Next step →'}
-                  </button>
                 ) : (
-                  <button onClick={isLoggedIn ? goDash : goSignup}
-                    className="px-5 py-2 bg-[#34d399] text-[#050505] text-xs rounded-lg font-bold hover:bg-[#6ee7b7] transition-colors">
-                    {isLoggedIn ? 'Dashboard →' : 'Start building →'}
-                  </button>
+                  <div className="text-white/20 text-sm">Select a demo above</div>
                 )}
               </div>
             </div>
@@ -648,171 +376,108 @@ export function Landing() {
       </section>
 
       {/* ── Features ── */}
-      <section id="features" className="py-20 px-5 max-w-6xl mx-auto border-t border-white/5">
-        <div className="mono text-xs text-white/25 mb-2">// why apivault</div>
-        <h2 className="text-3xl sm:text-4xl font-bold mb-3 tracking-tight">Everything you need.<br />Nothing you don't.</h2>
-        <p className="text-white/40 mb-12 max-w-xl text-base">
-          Built specifically for developers who want to move fast without getting buried in API account management.
-        </p>
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-          {FEATURES.map((f, i) => (
-            <div key={i} className="border border-white/6 rounded-2xl p-6 hover:border-white/15 transition-all group">
-              <div className="text-3xl mb-4">{f.icon}</div>
-              <div className="font-bold text-base mb-2">{f.title}</div>
-              <p className="text-sm text-white/40 leading-relaxed mb-4">{f.body}</p>
-              <div className="mono text-xs text-[#34d399]/60 border border-[#34d399]/15 bg-[#34d399]/5 px-2.5 py-1.5 rounded-lg inline-block">
-                {f.detail}
+      <section id="features" className="py-20 px-5 border-t border-white/5">
+        <div className="max-w-5xl mx-auto">
+          <div className="text-center mb-14">
+            <p className="text-white/30 text-sm mb-3">Why developers use APIvault</p>
+            <h2 className="text-3xl font-bold">Built for the way you actually build</h2>
+          </div>
+          <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-4">
+            {[
+              { icon: '🔑', title: 'One key for everything',      body: 'Learn the integration once. Your vault key works for every API in the catalogue — today and every API we add in future.' },
+              { icon: '📱', title: 'Pay with M-Pesa',             body: 'Top up your credits with M-Pesa, Visa, or bank transfer. No USD conversion hassle. Credits never expire.' },
+              { icon: '⚡', title: 'No SDK required',             body: 'Works with fetch, axios, requests, curl — any HTTP client in any language. Copy the snippet and it runs.' },
+              { icon: '📊', title: 'See every call you make',     body: 'Real-time dashboard shows every API call, cost, and response status. Know exactly what you\'re spending.' },
+              { icon: '🛡️', title: 'Your code stays clean',       body: 'Upstream API keys never touch your codebase. You only ever use your vault key — no rotation, no leaks.' },
+              { icon: '🌍', title: 'Built for African developers', body: 'M-Pesa, Africa\'s Talking, and local payment APIs coming. Designed for developers building in and for Africa.' },
+            ].map(f => (
+              <div key={f.title} className="bg-white/[0.03] border border-white/8 rounded-2xl p-5 hover:border-white/15 transition-colors">
+                <div className="text-2xl mb-3">{f.icon}</div>
+                <p className="font-semibold text-white mb-2">{f.title}</p>
+                <p className="text-white/35 text-sm leading-relaxed">{f.body}</p>
               </div>
-            </div>
-          ))}
-        </div>
-      </section>
-
-      {/* ── Use cases ── */}
-      <section className="py-20 px-5 max-w-6xl mx-auto border-t border-white/5">
-        <div className="mono text-xs text-white/25 mb-2">// real examples</div>
-        <h2 className="text-3xl font-bold mb-10 tracking-tight">What developers build with APIvault</h2>
-        <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-          {[
-            { icon: '🏦', title: 'Fintech app', desc: 'Live exchange rates + SMS alerts + news feed. Three APIs, one key, one account.', apis: ['Exchange Rates', 'Africa\'s Talking', 'NewsAPI'] },
-            { icon: '🚚', title: 'Logistics platform', desc: 'Weather forecasts + country data + IP location detection for delivery routing.', apis: ['Open Meteo', 'REST Countries', 'IP Geolocation'] },
-            { icon: '📱', title: 'Developer tool', desc: 'Dictionary lookups + GitHub search + fun content for productivity apps.', apis: ['Dictionary API', 'GitHub API', 'JokeAPI'] },
-          ].map(u => (
-            <div key={u.title} className="border border-white/6 rounded-2xl p-6 hover:border-white/15 transition-all">
-              <div className="text-3xl mb-3">{u.icon}</div>
-              <div className="font-bold text-base mb-2">{u.title}</div>
-              <p className="text-sm text-white/40 leading-relaxed mb-4">{u.desc}</p>
-              <div className="flex flex-wrap gap-1.5">
-                {u.apis.map(a => (
-                  <span key={a} className="mono text-[10px] bg-white/5 border border-white/8 text-white/40 px-2 py-1 rounded-md">{a}</span>
-                ))}
-              </div>
-            </div>
-          ))}
+            ))}
+          </div>
         </div>
       </section>
 
       {/* ── API catalogue ── */}
-      <section id="apis" className="py-20 px-5 max-w-6xl mx-auto border-t border-white/5">
-        <div className="mono text-xs text-white/25 mb-2">// api registry</div>
-        <h2 className="text-3xl font-bold mb-3 tracking-tight">Available APIs</h2>
-        <p className="text-white/40 mb-8 max-w-xl">
-          {liveCount} APIs live today · {totalCount - liveCount} coming soon. All accessible with the same vault key.
-        </p>
-        <div className="border border-white/8 rounded-2xl overflow-hidden">
-          <div className="grid grid-cols-4 px-5 py-3 border-b border-white/5 bg-white/[0.015]">
-            {['API', 'Category', 'Price / call', 'Status'].map(h => (
-              <div key={h} className="mono text-[10px] text-white/20 uppercase tracking-wide">{h}</div>
+      <section id="apis" className="py-20 px-5 border-t border-white/5">
+        <div className="max-w-5xl mx-auto">
+          <div className="text-center mb-12">
+            <p className="text-white/30 text-sm mb-3">What's in the vault</p>
+            <h2 className="text-3xl font-bold mb-3">{APIS.filter(a=>a.live).length} APIs ready now</h2>
+            <p className="text-white/35">More added every week. Request any API and we'll add it.</p>
+          </div>
+          <div className="flex flex-wrap gap-2 justify-center">
+            {APIS.map(a => (
+              <div key={a.name}
+                className={`flex items-center gap-2 px-3 py-1.5 rounded-full border text-xs font-medium transition-all ${
+                  a.live
+                    ? 'border-white/10 bg-white/[0.04] text-white/60 hover:border-white/20'
+                    : 'border-white/5 bg-transparent text-white/20'
+                }`}>
+                <span className="w-1.5 h-1.5 rounded-full flex-shrink-0"
+                  style={{ background: a.live ? (CAT[a.cat]?.text || '#888') : 'rgba(255,255,255,0.15)' }}/>
+                {a.name}
+                {a.live && a.price === 'Free' && (
+                  <span className="text-[10px] text-[#34d399] font-semibold">FREE</span>
+                )}
+                {!a.live && <span className="text-[10px] text-white/15">soon</span>}
+              </div>
             ))}
-          </div>
-          {APIS.map((a, i) => (
-            <div key={i} className="grid grid-cols-4 items-center px-5 py-3.5 border-b border-white/4 last:border-0 hover:bg-white/[0.015] transition-colors">
-              <div className="font-medium text-sm text-white/75">{a.name}</div>
-              <div>
-                <span className="mono text-[10px] px-2 py-0.5 rounded-md font-medium"
-                  style={{ background: CAT[a.cat]?.bg, color: CAT[a.cat]?.text }}>
-                  {a.cat}
-                </span>
-              </div>
-              <div className="mono text-xs text-white/45">{a.price}</div>
-              <div className="flex items-center gap-1.5">
-                <div className={`w-1.5 h-1.5 rounded-full ${a.live ? 'bg-[#34d399] animate-pulse' : 'bg-white/15'}`} />
-                <span className={`mono text-[10px] ${a.live ? 'text-[#34d399]' : 'text-white/20'}`}>
-                  {a.live ? 'live' : 'soon'}
-                </span>
-              </div>
-            </div>
-          ))}
-        </div>
-      </section>
-
-      {/* ── Africa ── */}
-      <section className="py-20 px-5 max-w-6xl mx-auto border-t border-white/5">
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-10 items-center">
-          <div>
-            <div className="mono text-xs text-white/25 mb-2">// our focus</div>
-            <h2 className="text-3xl sm:text-4xl font-bold mb-4 tracking-tight">Built for<br />African developers 🌍</h2>
-            <p className="text-white/45 text-base leading-relaxed mb-6">
-              Most API gateways are built for US developers. We built APIvault for developers in Kenya, Nigeria, Ghana, and across Africa — with local payment methods, local context, and Africa-specific APIs coming.
-            </p>
-            <div className="space-y-2.5">
-              {[
-                { icon: '📲', text: 'Top up with M-Pesa or Paystack — no USD conversion' },
-                { icon: '🇰🇪', text: 'M-Pesa Daraja API coming — STK Push, C2B, B2C' },
-                { icon: '📡', text: "Africa's Talking — SMS to 10+ African countries" },
-                { icon: '💰', text: 'Flutterwave and Paystack payment APIs coming' },
-              ].map(r => (
-                <div key={r.text} className="flex items-center gap-3">
-                  <span className="text-base">{r.icon}</span>
-                  <span className="text-sm text-white/50">{r.text}</span>
-                </div>
-              ))}
-            </div>
-          </div>
-          <div className="bg-[#0a0a0a] border border-white/6 rounded-2xl p-6">
-            <div className="mono text-xs text-white/25 mb-4">// quick start</div>
-            <pre className="mono text-xs text-white/55 leading-relaxed overflow-x-auto">{`# 1. Sign up at apivault-xi.vercel.app
-# 2. Get approved (minutes)
-# 3. Copy your vault key from Billing tab
-# 4. Start calling APIs
-
-curl 'https://api.apivault.uk\
-  /proxy/exchangerates/latest/KES' \\
-  -H 'x-vault-key: sk-vault-your-key'
-
-# → Live KES exchange rates
-# Free. Instant. No other accounts needed.`}</pre>
           </div>
         </div>
       </section>
 
       {/* ── CTA ── */}
-      <section className="py-24 px-5">
+      <section className="py-24 px-5 border-t border-white/5">
         <div className="max-w-2xl mx-auto text-center">
-          <div className="mono text-xs text-[#34d399] mb-4 tracking-widest">// ready to build?</div>
-          <h2 className="text-4xl sm:text-5xl font-bold mb-5 tracking-tight leading-tight">
-            One key.<br />Every API.<br />
-            <span style={{ color: '#34d399' }}>Start today.</span>
-          </h2>
-          <p className="text-white/40 mb-8 text-lg">
-            Free APIs work immediately. No credit card. Sign up and make your first API call in under 5 minutes.
-          </p>
-          <div className="flex flex-col sm:flex-row gap-3 justify-center">
-            <button onClick={isLoggedIn ? goDash : goSignup}
-              className="bg-[#34d399] text-[#050505] px-8 py-4 rounded-xl font-bold hover:bg-[#6ee7b7] transition-all text-base glow">
-              {isLoggedIn ? 'Go to dashboard →' : 'Create free account →'}
-            </button>
-            <button onClick={() => document.getElementById('demo')?.scrollIntoView({ behavior: 'smooth' })}
-              className="border border-white/12 text-white/50 px-8 py-4 rounded-xl font-medium hover:border-white/30 hover:text-white transition-all text-base">
-              See the demo first
-            </button>
+          <h2 className="text-4xl font-bold mb-4">Start building today</h2>
+          <p className="text-white/35 text-lg mb-8">Free APIs work immediately. No credit card. No setup.</p>
+          <div className="flex items-center justify-center gap-3">
+            {isLoggedIn ? (
+              <button onClick={goDash} className="px-8 py-4 bg-[#34d399] text-[#050505] rounded-xl font-bold hover:bg-[#6ee7b7] transition-colors text-sm">
+                Go to dashboard →
+              </button>
+            ) : (
+              <>
+                <button onClick={goSignup} className="px-8 py-4 bg-[#34d399] text-[#050505] rounded-xl font-bold hover:bg-[#6ee7b7] transition-colors text-sm">
+                  Create free account →
+                </button>
+                <button onClick={goLogin} className="px-8 py-4 border border-white/10 text-white/50 rounded-xl hover:border-white/20 hover:text-white/70 transition-all text-sm">
+                  Sign in
+                </button>
+              </>
+            )}
           </div>
+          <p className="text-white/15 text-xs mt-6">Paid APIs start from $0.001 per call · Top up with M-Pesa · Credits never expire</p>
         </div>
       </section>
 
       {/* ── Footer ── */}
       <footer className="border-t border-white/5 py-8 px-5">
-        <div className="max-w-6xl mx-auto flex flex-col sm:flex-row items-center justify-between gap-4">
-          <div className="flex items-center gap-2.5">
+        <div className="max-w-6xl mx-auto flex items-center justify-between flex-wrap gap-4">
+          <div className="flex items-center gap-2">
             <div className="w-5 h-5 bg-[#34d399] rounded-md flex items-center justify-center">
-              <div className="w-1.5 h-1.5 bg-[#050505] rounded-sm" />
+              <div className="w-1.5 h-1.5 bg-[#050505] rounded-sm"/>
             </div>
             <span className="font-bold text-sm">APIvault</span>
-            <span className="mono text-xs text-white/20 ml-2">Built in Kenya 🇰🇪</span>
+            <span className="text-white/15 text-xs ml-1">Built in Kenya 🇰🇪</span>
           </div>
-          <div className="flex items-center gap-5">
-            {['Demo', 'Features', 'APIs'].map(l => (
+          <div className="flex items-center gap-4">
+            {[['Demo','#demo'],['Features','#features'],['APIs','#apis']].map(([l,h]) => (
               <button key={l}
-                onClick={() => document.getElementById(l.toLowerCase())?.scrollIntoView({ behavior: 'smooth' })}
+                onClick={() => document.getElementById(h.slice(1))?.scrollIntoView({ behavior: 'smooth' })}
                 className="mono text-xs text-white/20 hover:text-white/50 transition-colors">
                 {l}
               </button>
             ))}
             {isLoggedIn ? (
-  <button onClick={() => { localStorage.clear(); nav('/') }} className="mono text-xs text-white/20 hover:text-white/50 transition-colors">Sign out</button>
-) : (
-  <button onClick={goLogin} className="mono text-xs text-white/20 hover:text-white/50 transition-colors">Sign in</button>
-)}
+              <button onClick={goLogout} className="mono text-xs text-white/20 hover:text-white/50 transition-colors">Sign out</button>
+            ) : (
+              <button onClick={goLogin} className="mono text-xs text-white/20 hover:text-white/50 transition-colors">Sign in</button>
+            )}
           </div>
         </div>
       </footer>

@@ -6,115 +6,87 @@ import { Onboarding } from './Onboarding.jsx'
 
 const BASE = import.meta.env.VITE_API_URL || ''
 
-// ─── API docs config ──────────────────────────────────────────────────────
+// ── Category colours ──────────────────────────────────────────────────────────
+const CAT_COLOR = {
+  ai:       'purple',
+  data:     'amber',
+  dev:      'orange',
+  payments: 'green',
+  comms:    'blue',
+  finance:  'green',
+  geo:      'teal',
+  health:   'pink',
+  media:    'fuchsia',
+}
+
+const CAT_STYLE = {
+  purple:  { bg: 'bg-purple-50',  text: 'text-purple-700',  border: 'border-purple-100' },
+  amber:   { bg: 'bg-amber-50',   text: 'text-amber-700',   border: 'border-amber-100'  },
+  orange:  { bg: 'bg-orange-50',  text: 'text-orange-700',  border: 'border-orange-100' },
+  green:   { bg: 'bg-green-50',   text: 'text-green-700',   border: 'border-green-100'  },
+  blue:    { bg: 'bg-blue-50',    text: 'text-blue-700',    border: 'border-blue-100'   },
+  teal:    { bg: 'bg-teal-50',    text: 'text-teal-700',    border: 'border-teal-100'   },
+  pink:    { bg: 'bg-pink-50',    text: 'text-pink-700',    border: 'border-pink-100'   },
+  fuchsia: { bg: 'bg-fuchsia-50', text: 'text-fuchsia-700', border: 'border-fuchsia-100'},
+  gray:    { bg: 'bg-gray-50',    text: 'text-gray-600',    border: 'border-gray-100'   },
+}
+
+// ── API docs config ───────────────────────────────────────────────────────────
 const API_DOCS = {
-  // ── Original ────────────────────────────────────────────────────────────
-  openweather:  { tryPath: '/weather?q=Nairobi&units=metric',            endpoints: [{ method:'GET', path:'/weather',            desc:'Current weather',       params:[{name:'q',desc:'City name',example:'Nairobi'},{name:'units',desc:'metric|imperial',example:'metric'}] },{ method:'GET', path:'/forecast', desc:'5-day forecast', params:[{name:'q',desc:'City name',example:'Nairobi'}] }] },
-  newsapi:      { tryPath: '/top-headlines?country=us&pageSize=3',        endpoints: [{ method:'GET', path:'/top-headlines',      desc:'Top headlines',         params:[{name:'country',desc:'2-letter code',example:'us'},{name:'pageSize',desc:'Results count',example:'5'}] },{ method:'GET', path:'/everything', desc:'Search articles', params:[{name:'q',desc:'Keywords',example:'Kenya economy'}] }] },
-  github:       { tryPath: '/users/octocat',                              endpoints: [{ method:'GET', path:'/users/:username',    desc:'User profile',          params:[{name:':username',desc:'GitHub username',example:'torvalds'}] },{ method:'GET', path:'/repos/:owner/:repo', desc:'Repo info', params:[{name:':owner',desc:'Owner',example:'facebook'},{name:':repo',desc:'Repo',example:'react'}] }] },
-  restcountries:{ tryPath: '/name/kenya',                                 endpoints: [{ method:'GET', path:'/name/:country',     desc:'Country by name',       params:[{name:':country',desc:'Country name',example:'kenya'}] },{ method:'GET', path:'/region/:region', desc:'By region', params:[{name:':region',desc:'Region',example:'africa'}] }] },
-  ipgeo:        { tryPath: '/json/8.8.8.8',                               endpoints: [{ method:'GET', path:'/json/:ip',          desc:'IP location lookup',    params:[{name:':ip',desc:'IPv4 address',example:'8.8.8.8'}] }] },
-  exchangerates:{ tryPath: '/latest/USD',                                 endpoints: [{ method:'GET', path:'/latest/:base',      desc:'Live exchange rates',   params:[{name:':base',desc:'Base currency',example:'USD'}] }] },
-  jokeapi:      { tryPath: '/joke/Programming?type=single',               endpoints: [{ method:'GET', path:'/joke/:category',    desc:'Get a joke',            params:[{name:':category',desc:'Category',example:'Programming'}] }] },
-  dictionary:   { tryPath: '/entries/en/hello',                           endpoints: [{ method:'GET', path:'/entries/en/:word',  desc:'Word definition',       params:[{name:':word',desc:'English word',example:'developer'}] }] },
-
-  // ── AI ─────────────────────────────────────────────────────────────────────
+  openweather:   { tryPath: '/weather?q=Nairobi&units=metric' },
+  newsapi:       { tryPath: '/top-headlines?country=us&pageSize=3' },
+  github:        { tryPath: '/users/octocat' },
+  restcountries: { tryPath: '/name/kenya' },
+  ipgeo:         { tryPath: '/json/8.8.8.8' },
+  exchangerates: { tryPath: '/latest/USD' },
+  jokeapi:       { tryPath: '/joke/Programming?type=single' },
+  dictionary:    { tryPath: '/entries/en/hello' },
   claude: {
-    tryPath: '/messages',
-    tryMethod: 'POST',
-    tryBody: {
-      model: 'claude-haiku-4-5-20251001',
-      max_tokens: 100,
-      messages: [{ role: 'user', content: 'Say hello in one sentence.' }]
-    },
-    endpoints: [{ method:'POST', path:'/messages', desc:'Send a message', params:[{name:'model',desc:'Model ID',example:'claude-haiku-4-5-20251001'},{name:'max_tokens',desc:'Max response tokens',example:'1024'},{name:'messages',desc:'Array of messages',example:'[{role:user,content:Hello}]'}] }]
+    tryPath: '/messages', tryMethod: 'POST',
+    tryBody: { model: 'claude-haiku-4-5-20251001', max_tokens: 100, messages: [{ role: 'user', content: 'Say hello in one sentence.' }] }
   },
-
-  // ── DATA ────────────────────────────────────────────────────────────────
-  openlib:      { tryPath: '/search.json?q=javascript&limit=3',          endpoints: [{ method:'GET', path:'/search.json',        desc:'Search books',          params:[{name:'q',desc:'Search query',example:'javascript'},{name:'limit',desc:'Max results',example:'5'}] },{ method:'GET', path:'/works/:id.json', desc:'Book details', params:[{name:':id',desc:'Work ID',example:'OL45804W'}] }] },
-  nasa:         { tryPath: '/planetary/apod?count=1',                    endpoints: [{ method:'GET', path:'/planetary/apod',     desc:'Astronomy picture',     params:[{name:'count',desc:'Number of images',example:'1'}] },{ method:'GET', path:'/neo/rest/v1/feed', desc:'Near Earth Objects', params:[{name:'start_date',desc:'YYYY-MM-DD',example:'2024-01-01'}] }] },
-  worldbank:    { tryPath: '/country/KE?format=json',                    endpoints: [{ method:'GET', path:'/country/:code',      desc:'Country data',          params:[{name:':code',desc:'2-letter ISO code',example:'KE'}] },{ method:'GET', path:'/country/:code/indicator/:id', desc:'Indicator data', params:[{name:':code',desc:'Country code',example:'KE'},{name:':id',desc:'Indicator',example:'NY.GDP.MKTP.CD'}] }] },
-  pokemon:      { tryPath: '/pokemon/pikachu',                           endpoints: [{ method:'GET', path:'/pokemon/:name',      desc:'Pokémon details',       params:[{name:':name',desc:'Pokémon name or ID',example:'pikachu'}] },{ method:'GET', path:'/type/:name', desc:'Type info', params:[{name:':name',desc:'Type name',example:'fire'}] }] },
-  rickmorty:    { tryPath: '/character/1',                               endpoints: [{ method:'GET', path:'/character',          desc:'All characters',        params:[] },{ method:'GET', path:'/character/:id', desc:'Character by ID', params:[{name:':id',desc:'Character ID',example:'1'}] },{ method:'GET', path:'/episode', desc:'All episodes', params:[] }] },
-  catfacts:     { tryPath: '/fact',                                      endpoints: [{ method:'GET', path:'/fact',               desc:'Random cat fact',       params:[] },{ method:'GET', path:'/facts?limit=5', desc:'Multiple facts', params:[{name:'limit',desc:'Count',example:'5'}] }] },
-  dogapi:       { tryPath: '/breeds/image/random',                       endpoints: [{ method:'GET', path:'/breeds/image/random',desc:'Random dog image',      params:[] },{ method:'GET', path:'/breed/:name/images', desc:'Breed images', params:[{name:':name',desc:'Breed name',example:'husky'}] }] },
-  adviceslip:   { tryPath: '/advice',                                    endpoints: [{ method:'GET', path:'/advice',             desc:'Random advice',         params:[] },{ method:'GET', path:'/advice/:id', desc:'Advice by ID', params:[{name:':id',desc:'Slip ID',example:'42'}] }] },
-  agify:        { tryPath: '/?name=michael',                              endpoints: [{ method:'GET', path:'/',                   desc:'Predict age from name', params:[{name:'name',desc:'First name',example:'michael'}] }] },
-  genderize:    { tryPath: '/?name=alex',                                 endpoints: [{ method:'GET', path:'/',                   desc:'Predict gender',        params:[{name:'name',desc:'First name',example:'alex'}] }] },
-  nationalize:  { tryPath: '/?name=chen',                                 endpoints: [{ method:'GET', path:'/',                   desc:'Predict nationality',   params:[{name:'name',desc:'First name',example:'chen'}] }] },
-  diseasesh:    { tryPath: '/all',                                       endpoints: [{ method:'GET', path:'/all',                desc:'Global COVID stats',    params:[] },{ method:'GET', path:'/countries/:country', desc:'Country stats', params:[{name:':country',desc:'Country name',example:'kenya'}] }] },
-  spacex:       { tryPath: '/launches/latest',                           endpoints: [{ method:'GET', path:'/launches/latest',   desc:'Latest launch',         params:[] },{ method:'GET', path:'/rockets', desc:'All rockets', params:[] },{ method:'GET', path:'/crew', desc:'Crew members', params:[] }] },
-  bored:        { tryPath: '/activity',                                  endpoints: [{ method:'GET', path:'/activity',           desc:'Random activity',       params:[] },{ method:'GET', path:'/activity?type=education', desc:'By type', params:[{name:'type',desc:'Activity type',example:'education'}] }] },
-  randomuser:   { tryPath: '/?results=1&nat=us',                          endpoints: [{ method:'GET', path:'/',                   desc:'Random user profile',   params:[{name:'results',desc:'Number of users',example:'3'},{name:'nat',desc:'Nationality',example:'us'}] }] },
-  quotable:     { tryPath: '/random',                                    endpoints: [{ method:'GET', path:'/random',             desc:'Random quote',          params:[] },{ method:'GET', path:'/quotes?author=einstein', desc:'By author', params:[{name:'author',desc:'Author name',example:'einstein'}] }] },
-  opentrivia:   { tryPath: '/?amount=5&type=multiple',                    endpoints: [{ method:'GET', path:'/',                   desc:'Trivia questions',      params:[{name:'amount',desc:'Number of questions',example:'5'},{name:'category',desc:'Category ID',example:'18'},{name:'type',desc:'multiple|boolean',example:'multiple'}] }] },
-  covid19:      { tryPath: '/summary',                                   endpoints: [{ method:'GET', path:'/summary',            desc:'Global summary',        params:[] },{ method:'GET', path:'/countries/:country', desc:'Country data', params:[{name:':country',desc:'Country name',example:'Kenya'}] }] },
-
-  // ── DEV ─────────────────────────────────────────────────────────────────
-  httpbin:      { tryPath: '/get',                                       endpoints: [{ method:'GET',  path:'/get',               desc:'Echo GET request',      params:[] },{ method:'POST', path:'/post', desc:'Echo POST request', params:[] },{ method:'GET', path:'/ip', desc:'Your IP address', params:[] }] },
-  'lorem-picsum':{ tryPath: '/photos?limit=3',                           endpoints: [{ method:'GET', path:'/photos',             desc:'List photos',           params:[{name:'limit',desc:'Max results',example:'5'},{name:'page',desc:'Page number',example:'1'}] },{ method:'GET', path:'/id/:id/info', desc:'Photo info', params:[{name:':id',desc:'Photo ID',example:'10'}] }] },
-  cataas:       { tryPath: '/cat?json=true',                             endpoints: [{ method:'GET', path:'/cat',                desc:'Random cat image URL',  params:[{name:'json',desc:'Return JSON',example:'true'}] }] },
-  dummyjson:    { tryPath: '/products?limit=3',                          endpoints: [{ method:'GET', path:'/products',           desc:'List products',         params:[{name:'limit',desc:'Max results',example:'5'}] },{ method:'GET', path:'/users', desc:'List users', params:[] },{ method:'GET', path:'/posts', desc:'List posts', params:[] }] },
-  fakerapi:     { tryPath: '/persons?_quantity=2',                       endpoints: [{ method:'GET', path:'/persons',            desc:'Fake persons',          params:[{name:'_quantity',desc:'Count',example:'5'}] },{ method:'GET', path:'/companies?_quantity=2', desc:'Fake companies', params:[{name:'_quantity',desc:'Count',example:'3'}] }] },
-  chucknorris:  { tryPath: '/jokes/random',                              endpoints: [{ method:'GET', path:'/jokes/random',       desc:'Random Chuck joke',     params:[] },{ method:'GET', path:'/jokes/categories', desc:'Categories', params:[] }] },
-  ipapi:        { tryPath: '/8.8.8.8/json',                              endpoints: [{ method:'GET', path:'/:ip/json',           desc:'IP details',            params:[{name:':ip',desc:'IPv4 address',example:'8.8.8.8'}] }] },
-
-  // ── GEO ─────────────────────────────────────────────────────────────────
-  openmeteo:    { tryPath: '/forecast?latitude=1.28&longitude=36.82&current_weather=true', endpoints: [{ method:'GET', path:'/forecast', desc:'Weather forecast', params:[{name:'latitude',desc:'Latitude',example:'1.28'},{name:'longitude',desc:'Longitude',example:'36.82'},{name:'current_weather',desc:'Include current',example:'true'}] }] },
-  nominatim:    { tryPath: '/search?q=Nairobi&format=json&limit=1',      endpoints: [{ method:'GET', path:'/search',             desc:'Geocode address',       params:[{name:'q',desc:'Place name',example:'Nairobi'},{name:'format',desc:'Response format',example:'json'}] },{ method:'GET', path:'/reverse?lat=1.28&lon=36.82&format=json', desc:'Reverse geocode', params:[{name:'lat',desc:'Latitude',example:'1.28'},{name:'lon',desc:'Longitude',example:'36.82'}] }] },
-  timezone:     { tryPath: '/Africa/Nairobi',                            endpoints: [{ method:'GET', path:'/:timezone',          desc:'Current time',          params:[{name:':timezone',desc:'Timezone name',example:'Africa/Nairobi'}] },{ method:'GET', path:'/list.txt', desc:'All timezones', params:[] }] },
-
-  // ── FINANCE ─────────────────────────────────────────────────────────────
-  frankfurter:  { tryPath: '/latest?from=USD&to=KES,EUR,GBP',           endpoints: [{ method:'GET', path:'/latest',             desc:'Latest forex rates',    params:[{name:'from',desc:'Base currency',example:'USD'},{name:'to',desc:'Target currencies',example:'KES,EUR'}] },{ method:'GET', path:'/:date', desc:'Historical rates', params:[{name:':date',desc:'YYYY-MM-DD',example:'2024-01-01'}] }] },
-  coingecko:    { tryPath: '/coins/markets?vs_currency=usd&order=market_cap_desc&per_page=5&page=1', endpoints: [{ method:'GET', path:'/coins/markets', desc:'Top coins by market cap', params:[{name:'vs_currency',desc:'Quote currency',example:'usd'},{name:'per_page',desc:'Results per page',example:'10'}] },{ method:'GET', path:'/simple/price?ids=bitcoin,ethereum&vs_currencies=usd', desc:'Simple price', params:[{name:'ids',desc:'Coin IDs',example:'bitcoin,ethereum'},{name:'vs_currencies',desc:'Currency',example:'usd'}] }] },
-  feargreed:    { tryPath: '/?limit=1',                                  endpoints: [{ method:'GET', path:'/',                   desc:'Current Fear & Greed',  params:[{name:'limit',desc:'Number of records',example:'1'}] }] },
-  coincap:      { tryPath: '/assets?limit=5',                            endpoints: [{ method:'GET', path:'/assets',             desc:'Top crypto assets',     params:[{name:'limit',desc:'Max results',example:'10'}] },{ method:'GET', path:'/assets/:id', desc:'Asset details', params:[{name:':id',desc:'Asset ID',example:'bitcoin'}] },{ method:'GET', path:'/rates', desc:'Exchange rates', params:[] }] },
-
-  // ── HEALTH ───────────────────────────────────────────────────────────────
-  openfda:      { tryPath: '/drug/label.json?limit=2',                   endpoints: [{ method:'GET', path:'/drug/label.json',    desc:'Drug labels',           params:[{name:'limit',desc:'Max results',example:'5'},{name:'search',desc:'Search query',example:'aspirin'}] },{ method:'GET', path:'/drug/event.json?limit=2', desc:'Adverse events', params:[{name:'limit',desc:'Max results',example:'5'}] }] },
-
-  // ── MEDIA ────────────────────────────────────────────────────────────────
-  itunesearch:  { tryPath: '/search?term=drake&limit=3',                 endpoints: [{ method:'GET', path:'/search',             desc:'Search iTunes',         params:[{name:'term',desc:'Search term',example:'drake'},{name:'media',desc:'Media type',example:'music'},{name:'limit',desc:'Max results',example:'5'}] }] },
+  openlib:       { tryPath: '/search.json?q=javascript&limit=3' },
+  nasa:          { tryPath: '/planetary/apod?count=1' },
+  worldbank:     { tryPath: '/country/KE?format=json' },
+  pokemon:       { tryPath: '/pokemon/pikachu' },
+  rickmorty:     { tryPath: '/character/1' },
+  catfacts:      { tryPath: '/fact' },
+  dogapi:        { tryPath: '/breeds/image/random' },
+  adviceslip:    { tryPath: '/advice' },
+  agify:         { tryPath: '/?name=michael' },
+  genderize:     { tryPath: '/?name=alex' },
+  nationalize:   { tryPath: '/?name=chen' },
+  diseasesh:     { tryPath: '/all' },
+  spacex:        { tryPath: '/launches/latest' },
+  bored:         { tryPath: '/activity' },
+  randomuser:    { tryPath: '/?results=1&nat=us' },
+  quotable:      { tryPath: '/random' },
+  opentrivia:    { tryPath: '/?amount=5&type=multiple' },
+  covid19:       { tryPath: '/summary' },
+  httpbin:       { tryPath: '/get' },
+  'lorem-picsum':{ tryPath: '/photos?limit=3' },
+  cataas:        { tryPath: '/cat?json=true' },
+  dummyjson:     { tryPath: '/products?limit=3' },
+  fakerapi:      { tryPath: '/persons?_quantity=2' },
+  chucknorris:   { tryPath: '/jokes/random' },
+  ipapi:         { tryPath: '/8.8.8.8/json' },
+  openmeteo:     { tryPath: '/forecast?latitude=1.28&longitude=36.82&current_weather=true' },
+  nominatim:     { tryPath: '/search?q=Nairobi&format=json&limit=1' },
+  timezone:      { tryPath: '/Africa/Nairobi' },
+  frankfurter:   { tryPath: '/latest?from=USD&to=KES,EUR,GBP' },
+  coingecko:     { tryPath: '/coins/markets?vs_currency=usd&order=market_cap_desc&per_page=5&page=1' },
+  feargreed:     { tryPath: '/?limit=1' },
+  coincap:       { tryPath: '/assets?limit=5' },
+  openfda:       { tryPath: '/drug/label.json?limit=2' },
+  itunesearch:   { tryPath: '/search?term=drake&limit=3' },
 }
 
-// ─── Primitives ───────────────────────────────────────────────────────────
-function Spin({ s = 5 }) {
-  return <div className={`w-${s} h-${s} border-2 border-gray-200 border-t-gray-700 rounded-full animate-spin`} />
-}
-
-function CopyBtn({ text, label = 'Copy' }) {
-  const [done, setDone] = useState(false)
-  return (
-    <button onClick={() => { navigator.clipboard?.writeText(text); setDone(true); setTimeout(() => setDone(false), 2000) }}
-      className="text-xs px-2.5 py-1 rounded-md border border-gray-700 text-gray-400 hover:text-gray-200 hover:border-gray-500 transition-colors">
-      {done ? '✓ Copied' : label}
-    </button>
-  )
-}
-
-function Tag({ children, color = 'gray' }) {
-  const cls = {
-    gray:    'bg-gray-100 text-gray-500',
-    green:   'bg-green-50 text-green-700',
-    amber:   'bg-amber-50 text-amber-700',
-    blue:    'bg-blue-50 text-blue-700',
-    purple:  'bg-purple-50 text-purple-700',
-    orange:  'bg-orange-50 text-orange-700',
-    teal:    'bg-teal-50 text-teal-700',
-    emerald: 'bg-emerald-50 text-emerald-700',
-    rose:    'bg-rose-50 text-rose-700',
-    pink:    'bg-pink-50 text-pink-700',
-  }
-  return <span className={`text-xs px-2 py-0.5 rounded-md font-medium ${cls[color] || cls.gray}`}>{children}</span>
-}
-
-const CAT_COLOR = { ai:'purple', data:'amber', dev:'orange', payments:'green', comms:'blue', geo:'teal', finance:'emerald', health:'rose', media:'pink' }
-
-function buildCode(slug, path, method = 'GET', lang = 'js', vaultKey = null, body = null) {
-  const API_BASE = 'https://api.apivault.uk'
-  const displayKey = 'YOUR_VAULT_KEY'
-  const isPost = method === 'POST'
-  const bodyStr = body ? JSON.stringify(body, null, 2) : null
+// ── Code builder ──────────────────────────────────────────────────────────────
+function buildSnippet(slug, path, method = 'GET', lang = 'js', vaultKey, body) {
+  const API_BASE   = 'https://api.apivault.uk'
+  const displayKey = vaultKey ? vaultKey.replace('sk-vault-', '') : 'YOUR_VAULT_KEY'
+  const isPost     = method === 'POST'
+  const bodyStr    = body ? JSON.stringify(body, null, 2) : ''
 
   if (lang === 'js') {
     if (isPost) return `const res = await fetch('${API_BASE}/proxy/${slug}${path}', {
@@ -125,60 +97,71 @@ function buildCode(slug, path, method = 'GET', lang = 'js', vaultKey = null, bod
   },
   body: JSON.stringify(${bodyStr})
 })
-const data = await res.json()
-console.log(data)`
+const data = await res.json()`
     return `const res = await fetch('${API_BASE}/proxy/${slug}${path}', {
   headers: { 'x-vault-key': '${displayKey}' }
 })
-const data = await res.json()
-console.log(data)`
+const data = await res.json()`
   }
 
   if (lang === 'python') {
     if (isPost) return `import requests
-res = requests.post('${API_BASE}/proxy/${slug}${path}',
-  headers={
-    'x-vault-key': '${displayKey}',
-    'Content-Type': 'application/json'
-  },
-  json=${bodyStr})
-print(res.json())`
+res = requests.post(
+  '${API_BASE}/proxy/${slug}${path}',
+  headers={'x-vault-key': '${displayKey}'},
+  json=${bodyStr}
+)
+data = res.json()`
     return `import requests
-res = requests.get('${API_BASE}/proxy/${slug}${path}',
-  headers={'x-vault-key': '${displayKey}'})
-print(res.json())`
+res = requests.get(
+  '${API_BASE}/proxy/${slug}${path}',
+  headers={'x-vault-key': '${displayKey}'}
+)
+data = res.json()`
   }
 
   if (isPost) return `curl -X POST '${API_BASE}/proxy/${slug}${path}' \\
   -H 'x-vault-key: ${displayKey}' \\
   -H 'Content-Type: application/json' \\
   -d '${bodyStr}'`
-
   return `curl '${API_BASE}/proxy/${slug}${path}' \\
   -H 'x-vault-key: ${displayKey}'`
 }
 
-// ─── API Card ─────────────────────────────────────────────────────────────
+// ── Primitives ────────────────────────────────────────────────────────────────
+function Spin({ s = 5 }) {
+  return <div className={`w-${s} h-${s} border-2 border-gray-200 border-t-gray-700 rounded-full animate-spin`} />
+}
+
+function CopyBtn({ text }) {
+  const [done, setDone] = useState(false)
+  return (
+    <button onClick={() => { navigator.clipboard?.writeText(text); setDone(true); setTimeout(() => setDone(false), 2000) }}
+      className="text-xs px-2.5 py-1 rounded-md border border-gray-700 text-gray-400 hover:text-gray-200 hover:border-gray-500 transition-colors">
+      {done ? '✓ Copied' : 'Copy'}
+    </button>
+  )
+}
+
+// ── API Card — shop style ─────────────────────────────────────────────────────
 function APICard({ a, expanded, onExpand, vaultKey, onAddCredits }) {
-  const [lang, setLang]     = useState('js')
+  const [lang,    setLang]    = useState('js')
   const [running, setRunning] = useState(false)
-  const [result, setResult] = useState(null)
+  const [result,  setResult]  = useState(null)
   const isOpen = expanded === a.slug
-  const doc = API_DOCS[a.slug]
+  const doc    = API_DOCS[a.slug]
+  const color  = CAT_COLOR[a.category] || 'gray'
+  const cs     = CAT_STYLE[color] || CAT_STYLE.gray
 
   async function run() {
-    const tryPath = doc?.tryPath
-    if (!tryPath || !vaultKey) return
+    if (!doc?.tryPath || !vaultKey) return
     setRunning(true); setResult(null)
     try {
-      const uuid = vaultKey?.replace('sk-vault-', '')
+      const uuid  = vaultKey?.replace('sk-vault-', '')
       const isPost = doc?.tryMethod === 'POST'
-      const res  = await fetch(`${BASE}/proxy/${a.slug}${tryPath}`, {
+      const res   = await fetch(`${BASE}/proxy/${a.slug}${doc.tryPath}`, {
         method: isPost ? 'POST' : 'GET',
-        headers: {
-          'x-vault-key': uuid,
-          ...(isPost ? { 'Content-Type': 'application/json' } : {})
-        },
+        headers: { 'x-vault-key': uuid, ...(isPost ? { 'Content-Type': 'application/json' } : {}) },
         body: isPost && doc?.tryBody ? JSON.stringify(doc.tryBody) : undefined,
       })
       const data = await res.json()
@@ -187,114 +170,98 @@ function APICard({ a, expanded, onExpand, vaultKey, onAddCredits }) {
     setRunning(false)
   }
 
-  function StateButton() {
-    if (a.state === 'active') {
-      return (
-        <button onClick={() => onExpand(a.slug)}
-          className={`px-3 py-1.5 text-xs rounded-lg font-semibold border transition-all
-            ${isOpen ? 'bg-gray-900 text-white border-gray-900' : 'border-gray-200 text-gray-700 hover:border-gray-900'}`}>
-          {isOpen ? '✕ Close' : '⚡ Use API'}
-        </button>
-      )
-    }
-    if (a.state === 'needs_credits') {
-      return (
-        <button onClick={onAddCredits}
-          className="px-3 py-1.5 text-xs rounded-lg font-semibold bg-amber-500 text-white hover:bg-amber-600 transition-colors">
-          Add credits →
-        </button>
-      )
-    }
-    return (
-      <span className="text-xs text-gray-400 font-medium px-3 py-1.5 border border-gray-100 rounded-lg bg-gray-50">
-        Coming soon
-      </span>
-    )
-  }
-
   return (
-    <div className={`bg-white border rounded-xl transition-all duration-200 ${isOpen ? 'border-gray-900 shadow-md' : 'border-gray-100 hover:border-gray-200'}`}>
+    <div className={`bg-white rounded-2xl border transition-all duration-200 ${isOpen ? 'border-gray-300 shadow-lg' : 'border-gray-100 hover:border-gray-200 hover:shadow-sm'}`}>
       <div className="p-4">
-        <div className="flex items-start gap-3 mb-3">
-          <div className="flex-1 min-w-0">
-            <div className="flex items-center gap-2 mb-0.5">
-              <span className="font-semibold text-sm text-gray-900">{a.name}</span>
-              {a.state === 'active' && a.user_price === 0 && <span className="text-[10px] text-green-600 font-semibold bg-green-50 px-1.5 py-0.5 rounded">FREE</span>}
-            </div>
-            {a.description && <p className="text-xs text-gray-400 leading-relaxed">{a.description}</p>}
-            <div className="font-mono text-[10px] text-gray-300 mt-1">/proxy/{a.slug}</div>
+        {/* Top row: category + price */}
+        <div className="flex items-center justify-between mb-3">
+          <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full capitalize ${cs.bg} ${cs.text}`}>
+            {a.category}
+          </span>
+          <div className="flex items-center gap-1.5">
+            {a.state === 'active' && a.user_price === 0 && (
+              <span className="text-[10px] font-bold text-green-600 bg-green-50 border border-green-100 px-1.5 py-0.5 rounded-full">FREE</span>
+            )}
+            {a.state === 'active' && a.user_price > 0 && (
+              <span className="text-[10px] font-mono text-gray-500">${a.user_price.toFixed(4)}/call</span>
+            )}
           </div>
-          <Tag color={CAT_COLOR[a.category] || 'gray'}>{a.category}</Tag>
         </div>
 
-        <div className="pt-3 border-t border-gray-50">
-          <div className="flex items-center justify-between">
-            <div>
-              <span className="font-mono text-sm font-bold text-gray-900">
-                {a.user_price > 0 ? `$${a.user_price.toFixed(4)}` : 'Free'}
-              </span>
-              <span className="text-xs text-gray-400 ml-1">/ call</span>
-            </div>
-            <StateButton />
-          </div>
+        {/* Name + description */}
+        <h3 className="font-bold text-gray-900 text-sm mb-1">{a.name}</h3>
+        {a.description && <p className="text-xs text-gray-400 leading-relaxed mb-3 line-clamp-2">{a.description}</p>}
+        <p className="font-mono text-[10px] text-gray-300 mb-4">/proxy/{a.slug}</p>
 
-          {a.state === 'needs_credits' && (
-            <div className="mt-2 text-xs text-amber-600 bg-amber-50 rounded-lg px-2.5 py-1.5 flex items-center gap-1.5">
-              <span>⚠</span>
-              <span>You have ${parseFloat(a.credits_available||0).toFixed(2)} credits · This API costs ${a.user_price.toFixed(4)}/call · <button onClick={onAddCredits} className="underline font-semibold">Add credits</button></span>
-            </div>
-          )}
-          {a.state === 'coming_soon' && (
-            <div className="mt-2 text-xs text-gray-400 bg-gray-50 rounded-lg px-2.5 py-1.5">
-              🔜 Coming soon — we're setting this up
-            </div>
-          )}
-        </div>
+        {/* Action button */}
+        {a.state === 'active' && (
+          <button onClick={() => onExpand(a.slug)}
+            className={`w-full py-2 rounded-xl text-xs font-bold border transition-all ${
+              isOpen
+                ? 'bg-gray-900 text-white border-gray-900'
+                : 'border-gray-200 text-gray-700 hover:border-gray-900 hover:bg-gray-900 hover:text-white'
+            }`}>
+            {isOpen ? '✕ Close' : '⚡ Use this API'}
+          </button>
+        )}
+        {a.state === 'needs_credits' && (
+          <button onClick={onAddCredits}
+            className="w-full py-2 rounded-xl text-xs font-bold bg-amber-500 text-white hover:bg-amber-600 transition-colors">
+            Add credits to use →
+          </button>
+        )}
+        {a.state === 'coming_soon' && (
+          <div className="w-full py-2 rounded-xl text-xs font-medium text-center text-gray-300 bg-gray-50 border border-gray-100">
+            Coming soon
+          </div>
+        )}
       </div>
 
+      {/* Expanded panel */}
       {isOpen && (
-        <div className="border-t border-gray-100">
-          <div className="p-4 pb-3">
-            <div className="flex items-center justify-between mb-2">
-              <div className="flex gap-1 p-1 bg-gray-800 rounded-lg">
-                {[['js','JS'],['python','Python'],['curl','cURL']].map(([id,lbl]) => (
-                  <button key={id} onClick={() => setLang(id)}
-                    className={`px-2.5 py-1 text-xs rounded-md font-medium transition-colors ${lang===id?'bg-gray-600 text-white':'text-gray-400 hover:text-gray-200'}`}>
-                    {lbl}
-                  </button>
-                ))}
-              </div>
-              <div className="flex items-center gap-2">
-                {vaultKey && <span className="text-[10px] text-green-400 font-medium">✓ Key loaded</span>}
-                <CopyBtn text={buildCode(a.slug, doc?.tryPath || '/', 'GET', lang, vaultKey)} />
-              </div>
+        <div className="border-t border-gray-100 p-4 space-y-4 bg-gray-50 rounded-b-2xl">
+          {/* Language tabs */}
+          <div className="flex items-center justify-between">
+            <div className="flex gap-1 p-1 bg-gray-800 rounded-lg">
+              {[['js','JS'],['python','Python'],['curl','cURL']].map(([id,lbl]) => (
+                <button key={id} onClick={() => setLang(id)}
+                  className={`px-2.5 py-1 text-xs rounded-md font-medium transition-colors ${lang===id?'bg-gray-600 text-white':'text-gray-400 hover:text-gray-200'}`}>
+                  {lbl}
+                </button>
+              ))}
             </div>
-            <div className="bg-gray-950 rounded-xl p-4 overflow-x-auto">
-              <pre className="text-xs text-gray-300 font-mono leading-relaxed whitespace-pre">{buildCode(a.slug, doc?.tryPath || '/', doc?.tryMethod || 'GET', lang, vaultKey, doc?.tryBody)}</pre>
+            <div className="flex items-center gap-2">
+              {vaultKey && <span className="text-[10px] text-green-500 font-medium">✓ Key loaded</span>}
+              <CopyBtn text={buildSnippet(a.slug, doc?.tryPath || '/', doc?.tryMethod || 'GET', lang, vaultKey, doc?.tryBody)} />
             </div>
           </div>
 
-          <div className="px-4 pb-4">
+          {/* Code snippet */}
+          <div className="bg-gray-950 rounded-xl p-4 overflow-x-auto">
+            <pre className="text-xs text-gray-300 font-mono leading-relaxed whitespace-pre">
+              {buildSnippet(a.slug, doc?.tryPath || '/', doc?.tryMethod || 'GET', lang, vaultKey, doc?.tryBody)}
+            </pre>
+          </div>
+
+          {/* Run live */}
+          <div>
             <div className="flex items-center gap-3 mb-3">
               <button onClick={run} disabled={running || !vaultKey || !doc?.tryPath}
                 className="px-4 py-2 bg-indigo-600 text-white text-xs rounded-lg hover:bg-indigo-700 disabled:opacity-40 font-semibold flex items-center gap-2 transition-colors">
-                {running ? <><Spin s={3} /><span>Running...</span></> : '▶ Run live'}
+                {running ? <><Spin s={3}/><span>Running...</span></> : '▶ Run live'}
               </button>
               <span className="text-xs text-gray-400">
-                {!vaultKey ? 'Reveal key in Billing to run' : !doc?.tryPath ? 'Check docs for endpoint path' : a.user_price === 0 ? 'Free call · no credits used' : `$${a.user_price.toFixed(4)} per call`}
+                {!vaultKey ? 'Go to Billing → Reveal key to run' : a.user_price === 0 ? 'Free · no credits used' : `$${a.user_price.toFixed(4)} per call`}
               </span>
             </div>
             {result && (
-              <div className={`rounded-xl p-3.5 border ${result.ok ? 'bg-green-50 border-green-100' : 'bg-red-50 border-red-100'}`}>
+              <div className={`rounded-xl p-3 border ${result.ok ? 'bg-green-50 border-green-100' : 'bg-red-50 border-red-100'}`}>
                 <div className={`text-xs font-semibold mb-2 ${result.ok ? 'text-green-700' : 'text-red-600'}`}>
                   {result.ok ? `✓ ${result.status} OK` : `✗ ${result.status || 'Error'}`}
                 </div>
-                <pre className="text-xs text-gray-600 font-mono whitespace-pre-wrap overflow-x-auto max-h-48">{JSON.stringify(result.data || result.error, null, 2)}</pre>
-              </div>
-            )}
-            {!doc && (
-              <div className="mt-2 p-3 bg-blue-50 border border-blue-100 rounded-lg text-xs text-blue-700">
-                📖 Full endpoint documentation coming soon. Use the base path <code className="font-mono bg-blue-100 px-1 rounded">/proxy/{a.slug}/</code> with your preferred endpoint.
+                <pre className="text-xs text-gray-600 font-mono whitespace-pre-wrap overflow-x-auto max-h-48">
+                  {JSON.stringify(result.data || result.error, null, 2)}
+                </pre>
               </div>
             )}
           </div>
@@ -304,92 +271,74 @@ function APICard({ a, expanded, onExpand, vaultKey, onAddCredits }) {
   )
 }
 
-// ─── Marketplace ──────────────────────────────────────────────────────────
+// ── Marketplace ───────────────────────────────────────────────────────────────
 function Marketplace({ apis, me, vaultKey, onAddCredits }) {
-  const [filter, setFilter]   = useState('all')
-  const [search, setSearch]   = useState('')
-  const [expanded, setExpanded] = useState(null)
+  const [filter,    setFilter]    = useState('all')
+  const [search,    setSearch]    = useState('')
+  const [expanded,  setExpanded]  = useState(null)
   const [requesting, setRequesting] = useState(false)
   const [requestSent, setRequestSent] = useState(false)
 
-  const cats    = ['all', ...new Set(apis.map(a => a.category).sort())]
-  const active  = apis.filter(a => a.state === 'active')
-  const hasLow  = parseFloat(me?.credits || 0) < 1
+  const cats   = ['all', ...new Set(apis.map(a => a.category).sort())]
+  const active = apis.filter(a => a.state === 'active')
+  const hasLow = parseFloat(me?.credits || 0) < 1
 
-  // Filter by category then search
   const filtered = apis
     .filter(a => filter === 'all' || a.category === filter)
     .filter(a => {
       if (!search.trim()) return true
       const q = search.toLowerCase()
-      return a.name.toLowerCase().includes(q) ||
-             a.slug.toLowerCase().includes(q) ||
-             a.category.toLowerCase().includes(q) ||
-             a.description?.toLowerCase().includes(q)
+      return a.name.toLowerCase().includes(q) || a.slug.toLowerCase().includes(q) || a.description?.toLowerCase().includes(q)
     })
 
-  // No results + search active = show discovery prompt
   const showDiscovery = search.trim().length > 1 && filtered.length === 0
 
   async function requestAPI() {
     setRequesting(true)
-    try {
-      await api.requestAPI(search.trim())
-      setRequestSent(true)
-    } catch(e) {}
+    try { await api.requestAPI(search.trim()); setRequestSent(true) } catch {}
     setRequesting(false)
   }
 
   return (
     <div>
+      {/* Header */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between mb-6 gap-3">
         <div>
           <h1 className="text-xl font-bold text-gray-900">API Marketplace</h1>
-          <p className="text-sm text-gray-400 mt-0.5">
-            {active.length} APIs ready to use · {apis.filter(a=>a.state==='coming_soon').length} coming soon
-          </p>
+          <p className="text-sm text-gray-400 mt-0.5">{active.length} APIs ready to use · {apis.filter(a=>a.state==='coming_soon').length} coming soon</p>
         </div>
-        <div className="text-right">
-          <div className={`text-lg font-bold ${hasLow ? 'text-red-500' : 'text-gray-900'}`}>
-            ${parseFloat(me?.credits || 0).toFixed(2)}
-          </div>
-          <div className="text-xs text-gray-400">credits</div>
+        <div className={`text-lg font-bold ${hasLow ? 'text-red-500' : 'text-gray-900'}`}>
+          ${parseFloat(me?.credits || 0).toFixed(2)} <span className="text-xs font-normal text-gray-400">credits</span>
         </div>
       </div>
 
+      {/* Low credits banner */}
       {hasLow && apis.some(a => a.state === 'needs_credits') && (
         <div className="mb-5 p-4 bg-amber-50 border border-amber-100 rounded-xl flex items-center justify-between gap-4">
           <div>
             <div className="text-sm font-semibold text-amber-800">Free APIs are active · Some APIs need credits</div>
-            <div className="text-xs text-amber-600 mt-0.5">Add $1 or more to unlock paid APIs</div>
+            <div className="text-xs text-amber-600 mt-0.5">Add $1 or more to unlock paid APIs like Claude</div>
           </div>
-          <button onClick={onAddCredits}
-            className="flex-shrink-0 px-4 py-2 bg-amber-500 text-white text-xs rounded-lg font-bold hover:bg-amber-600 transition-colors">
+          <button onClick={onAddCredits} className="flex-shrink-0 px-4 py-2 bg-amber-500 text-white text-xs rounded-lg font-bold hover:bg-amber-600 transition-colors">
             Add credits →
           </button>
         </div>
       )}
 
-      {/* Search bar */}
+      {/* Search */}
       <div className="relative mb-4">
         <span className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 text-sm">🔍</span>
-        <input
-          value={search}
-          onChange={e => { setSearch(e.target.value); setRequestSent(false) }}
+        <input value={search} onChange={e => { setSearch(e.target.value); setRequestSent(false) }}
           placeholder="Search APIs — or type any API name to request it..."
-          className="w-full pl-9 pr-4 py-2.5 text-sm border border-gray-200 rounded-xl
-            focus:outline-none focus:ring-2 focus:ring-gray-900 placeholder:text-gray-300 bg-white"
-        />
+          className="w-full pl-9 pr-4 py-2.5 text-sm border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-gray-900 placeholder:text-gray-300 bg-white"/>
         {search && (
           <button onClick={() => { setSearch(''); setRequestSent(false) }}
-            className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-300 hover:text-gray-500 text-lg leading-none">
-            ×
-          </button>
+            className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-300 hover:text-gray-500 text-lg">×</button>
         )}
       </div>
 
       {/* Category filters */}
-      <div className="flex gap-2 mb-5 overflow-x-auto scrollbar-hide pb-1">
+      <div className="flex gap-2 mb-6 overflow-x-auto pb-1">
         {cats.map(c => (
           <button key={c} onClick={() => setFilter(c)}
             className={`px-3 py-1.5 text-xs rounded-lg border transition-all capitalize flex-shrink-0 ${
@@ -400,16 +349,12 @@ function Marketplace({ apis, me, vaultKey, onAddCredits }) {
         ))}
       </div>
 
-      {/* Discovery prompt — shown when search yields no results */}
+      {/* Discovery prompt */}
       {showDiscovery && (
         <div className="mb-6 p-5 border-2 border-dashed border-gray-200 rounded-xl text-center">
-          <div className="text-2xl mb-2">🔌</div>
-          <div className="font-semibold text-gray-900 mb-1">
-            "{search}" not in the vault yet
-          </div>
-          <div className="text-sm text-gray-400 mb-4">
-            Request it and we'll add it. You'll be notified when it's live.
-          </div>
+          <div className="text-2xl mb-2">📌</div>
+          <div className="font-semibold text-gray-900 mb-1">"{search}" not in the vault yet</div>
+          <div className="text-sm text-gray-400 mb-4">Request it and we'll add it. You'll be notified when it's live.</div>
           {requestSent ? (
             <div className="inline-flex items-center gap-2 px-4 py-2 bg-green-50 border border-green-100 text-green-700 text-sm rounded-lg font-medium">
               ✓ Request sent — we'll notify you when it's live
@@ -423,11 +368,7 @@ function Marketplace({ apis, me, vaultKey, onAddCredits }) {
         </div>
       )}
 
-      {/* Results */}
-      {!showDiscovery && filtered.length === 0 && search && (
-        <div className="text-center py-10 text-gray-300 text-sm">No APIs match "{search}"</div>
-      )}
-
+      {/* Grid */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
         {filtered.map(a => (
           <APICard key={a.slug} a={a}
@@ -439,17 +380,17 @@ function Marketplace({ apis, me, vaultKey, onAddCredits }) {
   )
 }
 
-// ─── Usage ────────────────────────────────────────────────────────────────
+// ── Usage ─────────────────────────────────────────────────────────────────────
 function Usage({ stats, usage }) {
-  if (!stats) return <div className="flex justify-center py-16"><Spin s={6} /></div>
+  if (!stats) return <div className="flex justify-center py-16"><Spin s={6}/></div>
   return (
     <div>
       <h1 className="text-xl font-bold text-gray-900 mb-6">Usage</h1>
       <div className="grid grid-cols-3 gap-3 mb-5">
         {[
-          { label: '7-day calls',  value: stats.total_calls?.toLocaleString() || '0' },
-          { label: '7-day spend',  value: `$${parseFloat(stats.total_spent||0).toFixed(4)}` },
-          { label: 'APIs used',    value: stats.top_apis?.length || 0 },
+          { label: '7-day calls', value: stats.total_calls?.toLocaleString() || '0' },
+          { label: '7-day spend', value: `$${parseFloat(stats.total_spent||0).toFixed(4)}` },
+          { label: 'APIs used',   value: stats.top_apis?.length || 0 },
         ].map(s => (
           <div key={s.label} className="bg-white border border-gray-100 rounded-xl p-4">
             <div className="text-xs text-gray-400 mb-1">{s.label}</div>
@@ -457,7 +398,6 @@ function Usage({ stats, usage }) {
           </div>
         ))}
       </div>
-
       <div className="bg-white border border-gray-100 rounded-xl overflow-hidden overflow-x-auto">
         <div className="px-4 py-3 border-b border-gray-50 flex items-center justify-between">
           <span className="text-xs font-semibold text-gray-500">Recent calls</span>
@@ -494,11 +434,11 @@ function Usage({ stats, usage }) {
   )
 }
 
-// ─── Billing ──────────────────────────────────────────────────────────────
+// ── Billing ───────────────────────────────────────────────────────────────────
 function CustomAmount({ onBuy }) {
-  const [val, setVal]     = useState('')
-  const [loading, setL]   = useState(false)
-  const [err, setErr]     = useState('')
+  const [val, setVal] = useState('')
+  const [loading, setL] = useState(false)
+  const [err, setErr] = useState('')
   const num   = parseFloat(val)
   const valid = !isNaN(num) && num >= 1 && num <= 500
 
@@ -518,12 +458,10 @@ function CustomAmount({ onBuy }) {
           <input type="number" min="1" max="500" placeholder="Any amount"
             value={val} onChange={e => { setVal(e.target.value); setErr('') }}
             onKeyDown={e => e.key === 'Enter' && buy()}
-            className="w-full pl-7 pr-3 py-2.5 text-sm border border-gray-200 rounded-lg
-              focus:outline-none focus:ring-2 focus:ring-gray-900 placeholder:text-gray-300" />
+            className="w-full pl-7 pr-3 py-2.5 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-gray-900 placeholder:text-gray-300"/>
         </div>
         <button onClick={buy} disabled={!valid || loading}
-          className="px-4 py-2.5 bg-gray-900 text-white text-sm rounded-lg font-semibold
-            hover:bg-gray-800 disabled:opacity-40 transition-all whitespace-nowrap">
+          className="px-4 py-2.5 bg-gray-900 text-white text-sm rounded-lg font-semibold hover:bg-gray-800 disabled:opacity-40 transition-all whitespace-nowrap">
           {loading ? '...' : 'Pay now'}
         </button>
       </div>
@@ -535,7 +473,7 @@ function CustomAmount({ onBuy }) {
 }
 
 function Billing({ me, setMe, vaultKey, setVaultKey }) {
-  const [notice, setNotice]   = useState(null)
+  const [notice,   setNotice]   = useState(null)
   const [revealed, setRevealed] = useState(false)
   const credits = parseFloat(me?.credits || 0)
 
@@ -549,209 +487,110 @@ function Billing({ me, setMe, vaultKey, setVaultKey }) {
       <h1 className="text-xl font-bold text-gray-900 mb-6">Billing & Credits</h1>
 
       {notice && (
-        <div className={`mb-4 flex items-center gap-3 p-3.5 rounded-xl border text-sm ${notice.ok?'bg-green-50 border-green-100 text-green-700':'bg-red-50 border-red-100 text-red-600'}`}>
-          <span className="flex-1">{notice.msg}</span>
-          <button onClick={() => setNotice(null)} className="opacity-40 hover:opacity-100 text-lg">×</button>
+        <div className={`mb-4 p-3 rounded-xl border text-sm ${notice.ok ? 'bg-green-50 border-green-100 text-green-700' : 'bg-red-50 border-red-100 text-red-600'}`}>
+          {notice.msg}
         </div>
       )}
 
       <div className="bg-white border border-gray-100 rounded-xl p-5 mb-4">
-        <div className="flex items-center justify-between mb-3">
-          <div>
-            <div className="text-xs text-gray-400 mb-1">Available credits</div>
-            <div className={`text-4xl font-bold tracking-tight ${credits < 1 ? 'text-red-500' : 'text-gray-900'}`}>
-              ${credits.toFixed(2)}
-            </div>
-          </div>
-          <div className={`w-14 h-14 rounded-xl flex items-center justify-center text-2xl ${credits < 1 ? 'bg-red-50' : 'bg-green-50'}`}>
-            {credits < 1 ? '⚠️' : '💳'}
+        <div className="flex items-center justify-between mb-4">
+          <div className="text-sm font-bold text-gray-900">Credit balance</div>
+          <div className={`text-2xl font-bold ${credits < 1 ? 'text-red-500' : 'text-gray-900'}`}>
+            ${credits.toFixed(2)}
           </div>
         </div>
-        {credits < 1 && (
-          <div className="text-xs text-red-500 font-medium">Free APIs still work · Add credits to use NewsAPI and upcoming paid APIs</div>
-        )}
-        {credits > 0 && (
-          <div className="text-xs text-gray-400">
-            With $1 you get ~1000 NewsAPI calls · Credits never expire
-          </div>
-        )}
-      </div>
-
-      <div className="bg-white border border-gray-100 rounded-xl p-5 mb-4">
-        <div className="text-sm font-bold text-gray-900 mb-1">Add credits</div>
-        <div className="text-xs text-gray-400 mb-4">Secure payment via Paystack · M-Pesa and card accepted</div>
-        <div className="grid grid-cols-3 gap-2 mb-4">
-          {[1, 5, 10, 25, 50, 100].map(amt => (
+        <CustomAmount onBuy={buy} />
+        <div className="mt-3 flex gap-2">
+          {[5, 10, 25].map(amt => (
             <button key={amt} onClick={() => buy(amt)}
-              className="py-3 border border-gray-200 rounded-xl text-center transition-all hover:border-gray-900 hover:bg-gray-900 hover:text-white group">
-              <div className="text-[10px] text-gray-400 group-hover:text-gray-300">Add</div>
-              <div className="text-base font-bold text-gray-900 group-hover:text-white">${amt}</div>
+              className="flex-1 py-2 border border-gray-200 text-gray-600 text-xs rounded-lg hover:border-gray-400 transition-colors font-medium">
+              ${amt}
             </button>
           ))}
         </div>
-        <CustomAmount onBuy={buy} />
       </div>
 
       <div className="bg-white border border-gray-100 rounded-xl p-5 mb-4">
-        <div className="text-sm font-bold text-gray-900 mb-3">What your credits unlock</div>
-        <div className="space-y-2">
-          {[
-            { amt: '$1',  gets: '~1,000 NewsAPI calls' },
-            { amt: '$5',  gets: '~5,000 NewsAPI calls or 625 GPT-4o calls (coming soon)' },
-            { amt: '$10', gets: '~10,000 NewsAPI calls or 20 HeyGen videos (coming soon)' },
-          ].map(r => (
-            <div key={r.amt} className="flex items-center gap-3 text-xs">
-              <span className="font-mono font-bold text-gray-900 w-8">{r.amt}</span>
-              <span className="text-gray-500">{r.gets}</span>
-            </div>
-          ))}
-        </div>
-      </div>
-
-      <div className="bg-white border border-gray-100 rounded-xl p-5">
-        <div className="text-sm font-bold text-gray-900 mb-1">Your vault key</div>
-        <div className="text-xs text-gray-400 mb-3">
-          Add to every API request as the <code className="bg-gray-100 px-1.5 py-0.5 rounded font-mono text-gray-700">x-vault-key</code> header
-        </div>
-        <div className="flex items-center gap-2 mb-3">
-          <div className="flex-1 bg-gray-50 border border-gray-200 rounded-lg px-3 py-2.5 font-mono text-xs text-gray-700 truncate">
-            {vaultKey || 'sk-vault-••••••••••••••••••••••••'}
+        <div className="text-sm font-bold text-gray-900 mb-3">Your vault key</div>
+        <p className="text-xs text-gray-400 mb-3">Use this key in every API request. It's the only credential you need.</p>
+        <div className="bg-gray-50 border border-gray-200 rounded-lg px-3 py-2.5 font-mono text-xs text-gray-700 flex items-center justify-between gap-3">
+          <span className="truncate">{revealed && vaultKey ? `sk-vault-${vaultKey}` : '••••••••••••••••••••••••••••••••••••••'}</span>
+          <div className="flex gap-2 flex-shrink-0">
+            <button onClick={async () => {
+              if (!revealed) {
+                try { const k = await api.revealKey(); if (k?.key) { setVaultKey(k.key); setRevealed(true) } }
+                catch {}
+              } else setRevealed(false)
+            }} className="text-xs text-gray-500 hover:text-gray-700 transition-colors font-medium">
+              {revealed ? 'Hide' : 'Reveal'}
+            </button>
+            {revealed && vaultKey && (
+              <button onClick={() => navigator.clipboard?.writeText(`sk-vault-${vaultKey}`)}
+                className="text-xs text-gray-500 hover:text-gray-700 transition-colors">Copy</button>
+            )}
           </div>
-          <button onClick={async () => {
-            const { key: k } = await api.revealKey()
-            setVaultKey(k); setRevealed(true)
-            navigator.clipboard?.writeText(k)
-          }} className="px-3 py-2.5 bg-gray-900 text-white text-xs rounded-lg hover:bg-gray-800 transition-colors font-semibold whitespace-nowrap">
-            {revealed ? '✓ Copied' : 'Reveal & copy'}
-          </button>
         </div>
-        <div className="p-3 bg-amber-50 border border-amber-100 rounded-lg text-xs text-amber-700">
-          🔒 Keep this key private. Anyone with it can make API calls charged to your account.
-        </div>
+        <p className="text-xs text-gray-300 mt-2">Keep this secret — treat it like a password.</p>
       </div>
     </div>
   )
 }
 
-// ─── Docs ─────────────────────────────────────────────────────────────────
+// ── Docs ──────────────────────────────────────────────────────────────────────
 function Docs({ apis, vaultKey }) {
-  const [sel, setSel]   = useState(null)
-  const [lang, setLang] = useState('js')
-  const live = apis.filter(a => a.state === 'active')
-
-  useEffect(() => { if (live.length && !sel) setSel(live[0]?.slug) }, [live])
-
-  const a   = live.find(x => x.slug === sel)
-  const doc = a ? API_DOCS[a.slug] : null
+  const [selected, setSelected] = useState(null)
+  const [lang,     setLang]     = useState('js')
+  const active = apis.filter(a => a.state === 'active')
+  const a = selected ? apis.find(x => x.slug === selected) : null
+  const doc = selected ? API_DOCS[selected] : null
 
   return (
     <div>
-      <h1 className="text-xl font-bold text-gray-900 mb-1">Documentation</h1>
-      <p className="text-xs text-gray-400 mb-6 font-mono">
-        Base URL: https://api.apivault.uk
-      </p>
-
-      <div className="flex gap-5">
-        <div className="w-40 flex-shrink-0">
-          <div className="text-xs font-semibold text-gray-400 uppercase tracking-wide mb-2">Live APIs</div>
-          <div className="space-y-1">
-            {live.map(x => (
-              <button key={x.slug} onClick={() => setSel(x.slug)}
-                className={`w-full text-left px-3 py-2 rounded-lg text-sm transition-colors ${sel===x.slug?'bg-gray-900 text-white font-semibold':'text-gray-600 hover:bg-gray-100'}`}>
-                {x.name}
-              </button>
-            ))}
-          </div>
+      <h1 className="text-xl font-bold text-gray-900 mb-6">API Documentation</h1>
+      <div className="flex gap-6 h-[calc(100vh-200px)] min-h-[400px]">
+        {/* Sidebar */}
+        <div className="w-48 flex-shrink-0 overflow-y-auto space-y-0.5">
+          {active.map(x => (
+            <button key={x.slug} onClick={() => setSelected(x.slug)}
+              className={`w-full text-left px-3 py-2 rounded-lg text-xs font-medium transition-colors ${
+                selected === x.slug ? 'bg-gray-900 text-white' : 'text-gray-600 hover:bg-gray-100'
+              }`}>
+              {x.name}
+            </button>
+          ))}
         </div>
-
-        <div className="flex-1 min-w-0">
+        {/* Content */}
+        <div className="flex-1 overflow-y-auto">
           {a && doc ? (
-            <div>
-              <div className="flex items-start justify-between mb-4">
-                <div>
-                  <h2 className="font-bold text-gray-900 text-xl">{a.name}</h2>
-                  <p className="text-sm text-gray-500 mt-1">{a.description}</p>
-                </div>
-                <Tag color={CAT_COLOR[a.category] || 'gray'}>{a.category}</Tag>
-              </div>
-
-              <div className="bg-gray-50 border border-gray-100 rounded-xl p-4 mb-5">
-                <div className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-2">Authentication</div>
-                <div className="text-sm text-gray-600 mb-2">Add your vault key to every request:</div>
-                <div className="bg-gray-900 rounded-lg p-3 font-mono text-sm text-green-400">
-                  x-vault-key: {vaultKey || 'YOUR_VAULT_KEY'}
+            <div className="space-y-5">
+              <div>
+                <h2 className="text-lg font-bold text-gray-900">{a.name}</h2>
+                {a.description && <p className="text-sm text-gray-500 mt-1">{a.description}</p>}
+                <div className="mt-2 font-mono text-xs bg-gray-100 px-3 py-1.5 rounded-lg inline-block text-gray-600">
+                  Base: https://api.apivault.uk/proxy/{a.slug}
                 </div>
               </div>
-
-              <div className="bg-white border border-gray-100 rounded-xl p-4 mb-5 flex items-center gap-4">
-                <div>
-                  <div className="text-xs font-semibold text-gray-400 uppercase tracking-wide mb-1">Price per call</div>
-                  <div className="text-2xl font-bold text-gray-900 font-mono">
-                    {a.user_price > 0 ? `$${a.user_price.toFixed(4)}` : 'Free'}
+              <div>
+                <div className="flex items-center justify-between mb-2">
+                  <div className="text-xs font-bold text-gray-500 uppercase tracking-wide">Example</div>
+                  <div className="flex gap-1 p-1 bg-gray-100 rounded-lg">
+                    {[['js','JS'],['python','Python'],['curl','cURL']].map(([id,lbl]) => (
+                      <button key={id} onClick={() => setLang(id)}
+                        className={`px-2.5 py-1 text-xs rounded-md font-medium transition-all ${lang===id?'bg-white shadow-sm text-gray-900':'text-gray-500 hover:text-gray-700'}`}>
+                        {lbl}
+                      </button>
+                    ))}
                   </div>
                 </div>
-                {a.user_price === 0 && (
-                  <div className="text-sm text-green-600 bg-green-50 px-3 py-2 rounded-lg font-medium">
-                    No credits needed — just your vault key
-                  </div>
-                )}
-              </div>
-
-              <div className="flex gap-1 p-1 bg-gray-100 rounded-lg w-fit mb-4">
-                {[['js','JavaScript'],['python','Python'],['curl','cURL']].map(([id,lbl]) => (
-                  <button key={id} onClick={() => setLang(id)}
-                    className={`px-3 py-1.5 text-xs rounded-md font-medium transition-all ${lang===id?'bg-white shadow-sm text-gray-900':'text-gray-500 hover:text-gray-700'}`}>
-                    {lbl}
-                  </button>
-                ))}
-              </div>
-
-              <div className="space-y-4">
-                {doc.endpoints.map((ep, i) => (
-                  <div key={i} className="bg-white border border-gray-100 rounded-xl overflow-hidden">
-                    <div className="px-4 py-3 border-b border-gray-50 flex items-center gap-3 flex-wrap">
-                      <span className={`px-2.5 py-0.5 rounded text-xs font-bold font-mono ${ep.method==='GET'?'bg-green-100 text-green-700':'bg-blue-100 text-blue-700'}`}>{ep.method}</span>
-                      <code className="font-mono text-sm text-gray-800">/proxy/{a.slug}{ep.path}</code>
-                      <span className="text-xs text-gray-400">{ep.desc}</span>
-                    </div>
-                    {ep.params?.length > 0 && (
-                      <div className="px-4 py-3 border-b border-gray-50">
-                        <div className="text-xs font-semibold text-gray-400 mb-2">Parameters</div>
-                        <div className="space-y-2">
-                          {ep.params.map(p => (
-                            <div key={p.name} className="flex items-start gap-3 text-xs">
-                              <code className="font-mono bg-gray-100 px-1.5 py-0.5 rounded text-gray-700 flex-shrink-0">{p.name}</code>
-                              <span className="text-gray-500 flex-1">{p.desc}</span>
-                              <span className="text-gray-300 hidden sm:block font-mono">{p.example}</span>
-                            </div>
-                          ))}
-                        </div>
-                      </div>
-                    )}
-                    <div className="p-4">
-                      <div className="flex items-center justify-between mb-2">
-                        <div className="text-xs font-semibold text-gray-400">Example</div>
-                        <CopyBtn text={buildCode(a.slug, ep.params?.find(p=>!p.name.startsWith(':'))
-                          ? ep.path.replace(/:(\w+)/g,(_,k)=>ep.params.find(p=>p.name===`:${k}`)?.example||k) + (ep.method==='GET'&&ep.params.filter(p=>!p.name.startsWith(':')).length ? '?'+ep.params.filter(p=>!p.name.startsWith(':')).map(p=>`${p.name}=${p.example}`).join('&') : '')
-                          : ep.path.replace(/:(\w+)/g,(_,k)=>ep.params?.find(p=>p.name===`:${k}`)?.example||k), ep.method, lang, vaultKey)} />
-                      </div>
-                      <div className="bg-gray-950 rounded-xl p-4 overflow-x-auto">
-                        <pre className="text-xs text-gray-300 font-mono leading-relaxed whitespace-pre">
-                          {buildCode(a.slug,
-                            ep.path.replace(/:(\w+)/g,(_,k)=>ep.params?.find(p=>p.name===`:${k}`)?.example||k) +
-                            (ep.method==='GET'&&ep.params?.filter(p=>!p.name.startsWith(':')).length
-                              ? '?'+ep.params.filter(p=>!p.name.startsWith(':')).map(p=>`${p.name}=${p.example}`).join('&')
-                              : ''),
-                            ep.method, lang, vaultKey)}
-                        </pre>
-                      </div>
-                    </div>
-                  </div>
-                ))}
+                <div className="bg-gray-950 rounded-xl p-4 overflow-x-auto">
+                  <pre className="text-xs text-gray-300 font-mono leading-relaxed whitespace-pre">
+                    {buildSnippet(a.slug, doc.tryPath || '/', doc.tryMethod || 'GET', lang, vaultKey, doc.tryBody)}
+                  </pre>
+                </div>
               </div>
             </div>
           ) : (
-            <div className="flex flex-col items-center justify-center py-20 text-gray-300">
+            <div className="flex flex-col items-center justify-center h-full text-gray-300">
               <div className="text-5xl mb-4">📖</div>
               <div className="text-sm">Select an API from the sidebar</div>
             </div>
@@ -762,10 +601,10 @@ function Docs({ apis, vaultKey }) {
   )
 }
 
-// ─── Settings ─────────────────────────────────────────────────────────────
+// ── Settings ──────────────────────────────────────────────────────────────────
 function Settings({ me }) {
-  const [form, setForm]     = useState({ current:'', next:'', confirm:'' })
-  const [msg, setMsg]       = useState(null)
+  const [form,   setForm]   = useState({ current:'', next:'', confirm:'' })
+  const [msg,    setMsg]    = useState(null)
   const [saving, setSaving] = useState(false)
   const nav = useNavigate()
 
@@ -791,89 +630,74 @@ function Settings({ me }) {
   return (
     <div className="max-w-lg">
       <h1 className="text-xl font-bold text-gray-900 mb-6">Settings</h1>
-
       <div className="bg-white border border-gray-100 rounded-xl p-5 mb-4">
         <div className="text-sm font-bold text-gray-900 mb-4">Account</div>
         {[
           { label:'Email',        value: me?.email },
-          { label:'Credits',      value: `$${parseFloat(me?.credits||0).toFixed(2)}`, mono:true },
+          { label:'Credits',      value: `$${parseFloat(me?.credits||0).toFixed(2)}` },
           { label:'Member since', value: me?.created_at ? new Date(me.created_at).toLocaleDateString() : '—' },
-        ].map((r,i) => (
-          <div key={i} className="flex items-center justify-between py-3 border-b border-gray-50 last:border-0">
-            <span className="text-xs text-gray-500">{r.label}</span>
-            <span className={`text-xs font-semibold text-gray-900 ${r.mono?'font-mono':''}`}>{r.value}</span>
+        ].map(r => (
+          <div key={r.label} className="flex items-center justify-between py-2.5 border-b border-gray-50 last:border-0">
+            <span className="text-xs text-gray-400">{r.label}</span>
+            <span className="text-xs font-medium text-gray-700">{r.value}</span>
           </div>
         ))}
       </div>
-
       <div className="bg-white border border-gray-100 rounded-xl p-5 mb-4">
         <div className="text-sm font-bold text-gray-900 mb-4">Change password</div>
+        {msg && (
+          <div className={`mb-3 p-3 rounded-lg text-xs ${msg.ok ? 'bg-green-50 text-green-700' : 'bg-red-50 text-red-600'}`}>
+            {msg.text}
+          </div>
+        )}
         <form onSubmit={changePassword} className="space-y-3">
-          {[{label:'Current password',key:'current',ph:'••••••••'},{label:'New password',key:'next',ph:'Min 8 characters'},{label:'Confirm new',key:'confirm',ph:'••••••••'}].map(f => (
-            <div key={f.key}>
-              <label className="block text-xs font-medium text-gray-500 mb-1.5">{f.label}</label>
-              <input type="password" placeholder={f.ph} value={form[f.key]}
-                onChange={e => setForm(p => ({ ...p, [f.key]:e.target.value }))}
-                className="w-full px-3 py-2.5 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-gray-900 placeholder:text-gray-300" />
+          {[
+            { name:'current', label:'Current password', placeholder:'Current password' },
+            { name:'next',    label:'New password',     placeholder:'Min 8 characters' },
+            { name:'confirm', label:'Confirm new',      placeholder:'Repeat new password' },
+          ].map(f => (
+            <div key={f.name}>
+              <label className="block text-xs text-gray-400 mb-1">{f.label}</label>
+              <input type="password" placeholder={f.placeholder} value={form[f.name]}
+                onChange={e => setForm(p => ({ ...p, [f.name]: e.target.value }))}
+                className="w-full px-3 py-2.5 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-gray-900"/>
             </div>
           ))}
-          {msg && (
-            <div className={`flex items-center gap-2 p-3 rounded-lg border text-xs ${msg.ok?'bg-green-50 border-green-100 text-green-700':'bg-red-50 border-red-100 text-red-600'}`}>
-              {msg.text}
-            </div>
-          )}
           <button type="submit" disabled={saving || !form.current || !form.next || !form.confirm}
-            className="w-full py-2.5 bg-gray-900 text-white text-sm font-semibold rounded-lg hover:bg-gray-800 disabled:opacity-40 transition-all">
+            className="w-full py-2.5 bg-gray-900 text-white text-sm rounded-lg font-semibold hover:bg-gray-800 disabled:opacity-40 transition-colors">
             {saving ? 'Saving...' : 'Update password'}
           </button>
         </form>
       </div>
-
-      <div className="bg-white border border-red-100 rounded-xl p-5">
-        <div className="text-sm font-bold text-red-500 mb-4">Session</div>
-        <div className="flex items-center justify-between">
-          <div>
-            <div className="text-sm font-medium text-gray-900">Sign out</div>
-            <div className="text-xs text-gray-400 mt-0.5">Clears your local session</div>
-          </div>
-          <button onClick={() => { localStorage.clear(); nav('/') }}
-            className="px-4 py-2 border border-red-200 text-red-600 text-xs rounded-lg hover:bg-red-50 transition-colors font-semibold">
-            Sign out
-          </button>
-        </div>
-      </div>
+      <button onClick={() => { localStorage.clear(); nav('/') }}
+        className="w-full py-2.5 border border-gray-200 text-gray-500 text-sm rounded-xl hover:border-red-200 hover:text-red-500 transition-colors">
+        Sign out
+      </button>
     </div>
   )
 }
 
-// ─── Main Dashboard ───────────────────────────────────────────────────────
+// ── Dashboard shell ───────────────────────────────────────────────────────────
 const TABS = [
-  { id:'marketplace', label:'Marketplace' },
-  { id:'usage',       label:'Usage' },
-  { id:'billing',     label:'Billing' },
-  { id:'docs',        label:'Docs' },
-  { id:'settings',    label:'Settings' },
+  { id: 'marketplace', label: 'Marketplace' },
+  { id: 'usage',       label: 'Usage'       },
+  { id: 'billing',     label: 'Billing'     },
+  { id: 'docs',        label: 'Docs'        },
+  { id: 'settings',    label: 'Settings'    },
 ]
 
 export function Dashboard() {
-  const [me, setMe]             = useState(null)
-  const [apis, setApis]         = useState([])
-  const [stats, setStats]       = useState(null)
-  const [usage, setUsage]       = useState([])
-  const [tab, setTab]           = useState('marketplace')
-  const [vaultKey, setVaultKey] = useState(null)
-  const [showOnboarding, setShowOnboarding] = useState(false)
-  const [navOpen, setNavOpen]   = useState(false)         // ← NEW
   const nav = useNavigate()
+  const [me,       setMe]       = useState(null)
+  const [apis,     setApis]     = useState([])
+  const [stats,    setStats]    = useState(null)
+  const [usage,    setUsage]    = useState([])
+  const [tab,      setTab]      = useState('marketplace')
+  const [vaultKey, setVaultKey] = useState(null)
+  const [navOpen,  setNavOpen]  = useState(false)
+  const [showOnboarding, setShowOnboarding] = useState(false)
 
   useEffect(() => {
-    const params = new URLSearchParams(window.location.search)
-    const ref = params.get('reference')
-    if (ref) {
-      window.history.replaceState({}, '', '/app')
-      api.verifyPayment(ref).then(r => { if (r?.ok) api.me().then(m => setMe(m)) }).catch(() => {})
-    }
-
     Promise.all([api.me(), api.marketplace(), api.usageStats(), api.usage(), api.revealKey().catch(() => null)])
       .then(([m, mkt, s, u, k]) => {
         setMe(m); setApis(mkt); setStats(s); setUsage(u)
@@ -884,32 +708,29 @@ export function Dashboard() {
       .catch(() => { localStorage.clear(); nav('/') })
   }, [])
 
-  if (!me) return <div className="min-h-screen bg-white flex items-center justify-center"><Spin s={6} /></div>
+  if (!me) return <div className="min-h-screen bg-white flex items-center justify-center"><Spin s={6}/></div>
 
   if (showOnboarding) return (
     <Onboarding me={me} vaultKey={vaultKey} onComplete={() => {
       localStorage.setItem('onboarded_' + me.id, '1')
       setShowOnboarding(false)
-    }} />
+    }}/>
   )
 
   return (
     <div className="min-h-screen bg-[#fafafa]">
-
-      {/* ── Nav ─────────────────────────────────────────────────────────── */}
+      {/* Nav */}
       <div className="border-b border-gray-100 bg-white sticky top-0 z-20">
         <div className="max-w-6xl mx-auto px-4 h-14 flex items-center justify-between relative">
-
-          {/* Logo */}
           <button onClick={() => nav('/')}
             className="flex items-center gap-2 flex-shrink-0 hover:opacity-60 transition-opacity">
             <div className="w-5 h-5 rounded bg-gray-900 flex items-center justify-center">
-              <div className="w-1.5 h-1.5 rounded-full bg-white" />
+              <div className="w-1.5 h-1.5 rounded-full bg-white"/>
             </div>
             <span className="font-bold text-sm tracking-tight">APIvault</span>
           </button>
 
-          {/* Desktop tabs — centered */}
+          {/* Desktop tabs */}
           <div className="hidden md:flex items-center gap-0.5 absolute left-1/2 -translate-x-1/2">
             {TABS.map(t => (
               <button key={t.id} onClick={() => setTab(t.id)}
@@ -921,7 +742,6 @@ export function Dashboard() {
             ))}
           </div>
 
-          {/* Right: credits + hamburger */}
           <div className="flex items-center gap-3 flex-shrink-0">
             <div className="hidden sm:block text-right">
               <div className={`text-xs font-bold ${parseFloat(me.credits) < 1 ? 'text-red-500' : 'text-gray-900'}`}>
@@ -929,24 +749,20 @@ export function Dashboard() {
               </div>
               <div className="text-[10px] text-gray-400">credits</div>
             </div>
-            {/* Hamburger — mobile only */}
-            <button onClick={() => setNavOpen(o => !o)}
-              aria-label="Toggle menu"
+            <button onClick={() => setNavOpen(o => !o)} aria-label="Toggle menu"
               className="md:hidden flex flex-col justify-center items-center gap-[5px] w-8 h-8 rounded-lg hover:bg-gray-100 transition-colors">
-              <span className={`block h-0.5 w-5 bg-gray-700 rounded transition-all duration-200 ${navOpen ? 'rotate-45 translate-y-[7px]' : ''}`} />
-              <span className={`block h-0.5 w-5 bg-gray-700 rounded transition-all duration-200 ${navOpen ? 'opacity-0' : ''}`} />
-              <span className={`block h-0.5 w-5 bg-gray-700 rounded transition-all duration-200 ${navOpen ? '-rotate-45 -translate-y-[7px]' : ''}`} />
+              <span className={`block h-0.5 w-5 bg-gray-700 rounded transition-all ${navOpen ? 'rotate-45 translate-y-[7px]' : ''}`}/>
+              <span className={`block h-0.5 w-5 bg-gray-700 rounded transition-all ${navOpen ? 'opacity-0' : ''}`}/>
+              <span className={`block h-0.5 w-5 bg-gray-700 rounded transition-all ${navOpen ? '-rotate-45 -translate-y-[7px]' : ''}`}/>
             </button>
           </div>
         </div>
 
-        {/* Mobile dropdown */}
         {navOpen && (
           <div className="md:hidden border-t border-gray-100 bg-white">
             <div className="max-w-6xl mx-auto px-4 py-2 flex flex-col gap-0.5">
               {TABS.map(t => (
-                <button key={t.id}
-                  onClick={() => { setTab(t.id); setNavOpen(false) }}
+                <button key={t.id} onClick={() => { setTab(t.id); setNavOpen(false) }}
                   className={`w-full text-left px-4 py-3 text-sm rounded-lg transition-colors font-medium ${
                     tab === t.id ? 'bg-gray-900 text-white' : 'text-gray-600 hover:bg-gray-100'
                   }`}>
@@ -965,11 +781,11 @@ export function Dashboard() {
 
       {/* Content */}
       <div className="max-w-6xl mx-auto px-4 sm:px-6 py-8">
-        {tab==='marketplace' && <Marketplace apis={apis} me={me} vaultKey={vaultKey} onAddCredits={() => setTab('billing')} />}
-        {tab==='usage'       && <Usage stats={stats} usage={usage} />}
-        {tab==='billing'     && <Billing me={me} setMe={setMe} vaultKey={vaultKey} setVaultKey={setVaultKey} />}
-        {tab==='docs'        && <Docs apis={apis} vaultKey={vaultKey} />}
-        {tab==='settings'    && <Settings me={me} />}
+        {tab==='marketplace' && <Marketplace apis={apis} me={me} vaultKey={vaultKey} onAddCredits={() => setTab('billing')}/>}
+        {tab==='usage'       && <Usage stats={stats} usage={usage}/>}
+        {tab==='billing'     && <Billing me={me} setMe={setMe} vaultKey={vaultKey} setVaultKey={setVaultKey}/>}
+        {tab==='docs'        && <Docs apis={apis} vaultKey={vaultKey}/>}
+        {tab==='settings'    && <Settings me={me}/>}
       </div>
     </div>
   )
