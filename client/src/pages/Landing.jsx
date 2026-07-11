@@ -66,10 +66,13 @@ const DEMOS = [
     url: '/proxy/restcountries/name/kenya',
     parse: d => {
       const k = Array.isArray(d) ? d[0] : d
-      return k ? [
-        { k: 'Country', v: `${k.flag || '🇰🇪'} ${k.name?.common}` },
+      if (!k) return null
+      const countryName = k.name?.common || k.name
+      const capital = Array.isArray(k.capital) ? k.capital[0] : k.capital
+      return countryName ? [
+        { k: 'Country', v: `${k.flag || '🇰🇪'} ${countryName}` },
         { k: 'Population', v: `${(k.population / 1e6).toFixed(1)}M` },
-        { k: 'Capital', v: k.capital?.[0] },
+        { k: 'Capital', v: capital },
       ] : null
     },
   },
@@ -131,9 +134,13 @@ export function Landing() {
     if (data.fact) return data.fact.slice(0, 100)
     if (data.slip?.advice) return data.slip.advice.slice(0, 100)
     if (data.value?.joke) return data.value.joke.slice(0, 100)
-    if (Array.isArray(data) && data[0]?.name?.common) {
+    if (Array.isArray(data) && data[0]) {
       const k = data[0]
-      return `🇰🇪 ${k.name.common} · Pop ${((k.population||0)/1e6).toFixed(1)}M`
+      // Handles both old (name.common) and new (flat name string) API shapes
+      const countryName = k.name?.common || k.name
+      if (countryName) {
+        return `🇰🇪 ${countryName} · Pop ${((k.population || 0) / 1e6).toFixed(1)}M`
+      }
     }
     if (data.activity) return data.activity.slice(0, 100)
     if (data.text) return data.text.slice(0, 100)
