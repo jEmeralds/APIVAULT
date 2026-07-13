@@ -15,6 +15,7 @@ showcaseRoute.get('/', async (req, res) => {
       .select('slug, name, category, upstream_url, try_path')
       .eq('showcase', true)
       .eq('status', 'live')
+      .eq('health_status', 'ok') // hide anything currently failing its health check
       .limit(6)
 
     if (error) throw error

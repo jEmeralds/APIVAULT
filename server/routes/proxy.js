@@ -5,6 +5,7 @@ import { limiter }  from '../middleware/rateLimit.js'
 import { billing }  from '../services/billing.js'
 import { pools }    from '../services/pools.js'
 import { registry } from '../services/registry.js'
+import { buildUpstreamRequest } from '../services/upstreamRequest.js'
 
 export const proxyRoute = Router()
 
@@ -39,51 +40,9 @@ proxyRoute.all('/:service/*?', auth, async (req, res) => {
     if (!deducted) return res.status(402).json({ error: 'Insufficient credits. Top up to continue.' })
   }
 
-  // Build upstream request
+  // Build upstream request via shared module (also used by healthCheck.js)
   const upstreamPath = ('/' + (req.params[0] || '')).replace('//', '/') || '/'
-  const queryString  = Object.keys(req.query).length
-    ? '?' + new URLSearchParams(req.query).toString()
-    : ''
-  const upstreamUrl  = api.upstream_url.replace(/\/$/, '') + upstreamPath + queryString
-
-  // Build headers — different APIs use different auth formats
-  const headers = {
-    'Content-Type': 'application/json',
-  }
-
-  const masterKey = api.masterKey
-
-  if (masterKey && masterKey !== 'no-key-required' && masterKey !== 'pending-setup') {
-    const authHeader = api.auth_header || 'Authorization'
-    const authPrefix = api.auth_prefix || 'Bearer '
-
-    // Per-API auth overrides
-    if (api.slug === 'newsapi') {
-      headers['X-Api-Key'] = masterKey
-    } else if (api.slug === 'openweather') {
-      const sep = upstreamUrl.includes('?') ? '&' : '?'
-      const finalUrl = upstreamUrl + sep + 'appid=' + masterKey
-      return proxyRequest(req, res, api, user, finalUrl, headers, charged, isFree)
-    } else if (api.slug === 'nasa') {
-      const sep = upstreamUrl.includes('?') ? '&' : '?'
-      const finalUrl = upstreamUrl + sep + 'api_key=' + masterKey
-      return proxyRequest(req, res, api, user, finalUrl, headers, charged, isFree)
-    } else if (api.slug === 'ipgeo') {
-      return proxyRequest(req, res, api, user, upstreamUrl, headers, charged, isFree)
-    } else if (api.slug === 'claude') {
-      // Anthropic uses x-api-key header + anthropic-version
-      headers['x-api-key'] = masterKey
-      headers['anthropic-version'] = '2023-06-01'
-      delete headers['Authorization']
-    } else if (api.slug === 'gemini') {
-      // Gemini uses ?key= query param
-      const sep = upstreamUrl.includes('?') ? '&' : '?'
-      const finalUrl = upstreamUrl + sep + 'key=' + masterKey
-      return proxyRequest(req, res, api, user, finalUrl, headers, charged, isFree)
-    } else {
-      headers[authHeader] = `${authPrefix}${masterKey}`
-    }
-  }
+  const { url: upstreamUrl, headers } = buildUpstreamRequest(api, upstreamPath, req.query)
 
   // Forward safe user headers
   if (req.headers['accept'])          headers['Accept']          = req.headers['accept']
