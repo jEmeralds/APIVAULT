@@ -31,6 +31,75 @@ const CAT_STYLE = {
   gray:    { bg: 'bg-gray-50',    text: 'text-gray-600',    border: 'border-gray-100'   },
 }
 
+// ── Task buckets — plain-language front door instead of raw categories ────────
+// Each bucket groups technical categories under a task a non-developer would
+// actually search for. "all" always exists as the escape hatch.
+const TASKS = [
+  { id: 'all',     label: 'Everything',              icon: '✨', cats: null },
+  { id: 'ai',      label: 'Ask AI a question',        icon: '🤖', cats: ['ai'] },
+  { id: 'money',   label: 'Money & payments',          icon: '💸', cats: ['payments', 'finance'] },
+  { id: 'comms',   label: 'Send a message',            icon: '💬', cats: ['comms'] },
+  { id: 'info',    label: 'Look up facts & places',    icon: '🌍', cats: ['data', 'geo', 'health'] },
+  { id: 'media',   label: 'Media & fun',               icon: '🎬', cats: ['media'] },
+  { id: 'dev',     label: 'Developer tools',           icon: '🛠️', cats: ['dev'] },
+]
+
+function bucketForCategory(cat) {
+  return TASKS.find(t => t.cats && t.cats.includes(cat))?.id || 'dev'
+}
+
+// ── Plain-language outcomes — what each API actually does for you ─────────────
+// Falls back to the registry's own description, then a generic phrase.
+const OUTCOMES = {
+  openweather:   'Get the current weather for any city',
+  newsapi:       'Get today\'s top news headlines',
+  github:        'Look up a GitHub profile or repository',
+  restcountries: 'Get facts about any country',
+  ipgeo:         'Find the location of an IP address',
+  exchangerates: 'Convert between currencies',
+  jokeapi:       'Get a programming joke',
+  dictionary:    'Look up the definition of a word',
+  claude:        'Ask an AI a question and get an answer',
+  openlib:       'Search millions of books',
+  nasa:          'Get NASA\'s photo of the day',
+  worldbank:     'Get country economic data',
+  pokemon:       'Look up any Pokémon',
+  rickmorty:     'Look up Rick and Morty characters',
+  catfacts:      'Get a random cat fact',
+  dogapi:        'Get a random dog photo',
+  adviceslip:    'Get a random piece of advice',
+  agify:         'Guess someone\'s age from their name',
+  genderize:     'Guess someone\'s gender from their name',
+  nationalize:   'Guess someone\'s nationality from their name',
+  diseasesh:     'Get global disease statistics',
+  spacex:        'Get the latest SpaceX launch',
+  bored:         'Get a random activity idea',
+  randomuser:    'Generate a random fake person',
+  quotable:      'Get a random inspirational quote',
+  opentrivia:    'Get trivia questions',
+  covid19:       'Get COVID-19 case statistics',
+  httpbin:       'Test HTTP requests',
+  'lorem-picsum':'Get random placeholder photos',
+  cataas:        'Get a random cat photo',
+  dummyjson:     'Get sample product data for testing',
+  fakerapi:      'Generate fake test data',
+  chucknorris:   'Get a random Chuck Norris joke',
+  ipapi:         'Find the location of an IP address',
+  openmeteo:     'Get live weather by coordinates',
+  nominatim:     'Turn an address into map coordinates',
+  timezone:      'Get the current time in any timezone',
+  frankfurter:   'Convert between currencies',
+  coingecko:     'Get live crypto prices',
+  feargreed:     'Get the crypto market sentiment index',
+  coincap:       'Get live crypto market data',
+  openfda:       'Look up drug label information',
+  itunesearch:   'Search music, apps, and podcasts on iTunes',
+}
+
+function outcomeFor(a) {
+  return OUTCOMES[a.slug] || a.description || `Connect to ${a.name}`
+}
+
 // ── API docs config ───────────────────────────────────────────────────────────
 const API_DOCS = {
   openweather:   { tryPath: '/weather?q=Nairobi&units=metric' },
@@ -128,6 +197,52 @@ data = res.json()`
   -H 'x-vault-key: ${displayKey}'`
 }
 
+// ── Friendly result formatter ──────────────────────────────────────────────────
+// Turns a raw API response into a short list of plain-language facts instead
+// of a wall of JSON. Falls back to raw JSON (collapsed) if nothing matches.
+function friendlyFormat(data) {
+  if (data === null || data === undefined) return null
+  const item = Array.isArray(data) ? data[0] : data
+  if (!item || typeof item !== 'object') {
+    return [{ k: 'Result', v: String(data).slice(0, 200) }]
+  }
+
+  // Known common shapes first
+  if (item.rates && typeof item.rates === 'object') {
+    return Object.entries(item.rates).slice(0, 4).map(([k, v]) => ({ k, v: String(v) }))
+  }
+  if (item.joke) return [{ k: 'Joke', v: item.joke.slice(0, 200) }]
+  if (item.value?.joke) return [{ k: 'Joke', v: item.value.joke.slice(0, 200) }]
+  if (item.fact) return [{ k: 'Fact', v: item.fact.slice(0, 200) }]
+  if (item.slip?.advice) return [{ k: 'Advice', v: item.slip.advice.slice(0, 200) }]
+  if (item.activity) return [{ k: 'Activity', v: item.activity.slice(0, 200) }]
+  if (item.name && typeof item.name === 'object' && item.name.common) {
+    return [
+      { k: 'Country', v: `${item.flag || ''} ${item.name.common}`.trim() },
+      { k: 'Capital', v: Array.isArray(item.capital) ? item.capital[0] : item.capital },
+      { k: 'Population', v: item.population ? `${(item.population / 1e6).toFixed(1)}M` : undefined },
+    ].filter(r => r.v)
+  }
+  if (typeof item.name === 'string' && item.population) {
+    return [
+      { k: 'Country', v: `${item.flag || ''} ${item.name}`.trim() },
+      { k: 'Capital', v: Array.isArray(item.capital) ? item.capital[0] : item.capital },
+      { k: 'Population', v: `${(item.population / 1e6).toFixed(1)}M` },
+    ].filter(r => r.v)
+  }
+  if (item.content?.[0]?.text) return [{ k: 'Answer', v: item.content[0].text.slice(0, 300) }]
+  if (item.message?.content?.[0]?.text) return [{ k: 'Answer', v: item.message.content[0].text.slice(0, 300) }]
+
+  // Generic — first few primitive fields
+  const rows = []
+  for (const [key, val] of Object.entries(item)) {
+    if (rows.length >= 4) break
+    if (typeof val === 'string' && val.length > 0) rows.push({ k: key, v: val.slice(0, 140) })
+    else if (typeof val === 'number' || typeof val === 'boolean') rows.push({ k: key, v: String(val) })
+  }
+  return rows.length ? rows : null
+}
+
 // ── Primitives ────────────────────────────────────────────────────────────────
 function Spin({ s = 5 }) {
   return <div className={`w-${s} h-${s} border-2 border-gray-200 border-t-gray-700 rounded-full animate-spin`} />
@@ -143,15 +258,17 @@ function CopyBtn({ text }) {
   )
 }
 
-// ── API Card — shop style ─────────────────────────────────────────────────────
+// ── API Card — plain-language, try-it-first ────────────────────────────────────
 function APICard({ a, expanded, onExpand, vaultKey, onAddCredits }) {
-  const [lang,    setLang]    = useState('js')
-  const [running, setRunning] = useState(false)
-  const [result,  setResult]  = useState(null)
+  const [lang,       setLang]       = useState('js')
+  const [running,    setRunning]    = useState(false)
+  const [result,     setResult]     = useState(null)
+  const [showCode,   setShowCode]   = useState(false)
   const isOpen = expanded === a.slug
   const doc    = API_DOCS[a.slug]
   const color  = CAT_COLOR[a.category] || 'gray'
   const cs     = CAT_STYLE[color] || CAT_STYLE.gray
+  const outcome = outcomeFor(a)
 
   async function run() {
     if (!doc?.tryPath || !vaultKey) return
@@ -165,7 +282,7 @@ function APICard({ a, expanded, onExpand, vaultKey, onAddCredits }) {
         body: isPost && doc?.tryBody ? JSON.stringify(doc.tryBody) : undefined,
       })
       const data = await res.json()
-      setResult({ ok: res.ok, status: res.status, data })
+      setResult({ ok: res.ok, status: res.status, data, friendly: friendlyFormat(data) })
     } catch (e) { setResult({ ok: false, error: e.message }) }
     setRunning(false)
   }
@@ -188,10 +305,9 @@ function APICard({ a, expanded, onExpand, vaultKey, onAddCredits }) {
           </div>
         </div>
 
-        {/* Name + description */}
+        {/* Name + plain-language outcome (replaces raw /proxy/slug as the headline) */}
         <h3 className="font-bold text-gray-900 text-sm mb-1">{a.name}</h3>
-        {a.description && <p className="text-xs text-gray-400 leading-relaxed mb-3 line-clamp-2">{a.description}</p>}
-        <p className="font-mono text-[10px] text-gray-300 mb-4">/proxy/{a.slug}</p>
+        <p className="text-xs text-gray-500 leading-relaxed mb-4">{outcome}</p>
 
         {/* Action button */}
         {a.state === 'active' && (
@@ -201,7 +317,7 @@ function APICard({ a, expanded, onExpand, vaultKey, onAddCredits }) {
                 ? 'bg-gray-900 text-white border-gray-900'
                 : 'border-gray-200 text-gray-700 hover:border-gray-900 hover:bg-gray-900 hover:text-white'
             }`}>
-            {isOpen ? '✕ Close' : '⚡ Use this API'}
+            {isOpen ? '✕ Close' : '⚡ Try it'}
           </button>
         )}
         {a.state === 'needs_credits' && (
@@ -217,51 +333,77 @@ function APICard({ a, expanded, onExpand, vaultKey, onAddCredits }) {
         )}
       </div>
 
-      {/* Expanded panel */}
+      {/* Expanded panel — try it first, code hidden behind a toggle */}
       {isOpen && (
         <div className="border-t border-gray-100 p-4 space-y-4 bg-gray-50 rounded-b-2xl">
-          {/* Language tabs */}
-          <div className="flex items-center justify-between">
-            <div className="flex gap-1 p-1 bg-gray-800 rounded-lg">
-              {[['js','JS'],['python','Python'],['curl','cURL']].map(([id,lbl]) => (
-                <button key={id} onClick={() => setLang(id)}
-                  className={`px-2.5 py-1 text-xs rounded-md font-medium transition-colors ${lang===id?'bg-gray-600 text-white':'text-gray-400 hover:text-gray-200'}`}>
-                  {lbl}
-                </button>
-              ))}
-            </div>
-            <div className="flex items-center gap-2">
-              {vaultKey && <span className="text-[10px] text-green-500 font-medium">✓ Key loaded</span>}
-              <CopyBtn text={buildSnippet(a.slug, doc?.tryPath || '/', doc?.tryMethod || 'GET', lang, vaultKey, doc?.tryBody)} />
-            </div>
+          <div className="flex items-center gap-3">
+            <button onClick={run} disabled={running || !vaultKey || !doc?.tryPath}
+              className="px-4 py-2 bg-indigo-600 text-white text-xs rounded-lg hover:bg-indigo-700 disabled:opacity-40 font-semibold flex items-center gap-2 transition-colors">
+              {running ? <><Spin s={3}/><span>Trying it...</span></> : '▶ See it in action'}
+            </button>
+            <span className="text-xs text-gray-400">
+              {!vaultKey ? 'Go to Billing → Reveal key to try it' : a.user_price === 0 ? 'Free · no credits used' : `$${a.user_price.toFixed(4)} per try`}
+            </span>
           </div>
 
-          {/* Code snippet */}
-          <div className="bg-gray-950 rounded-xl p-4 overflow-x-auto">
-            <pre className="text-xs text-gray-300 font-mono leading-relaxed whitespace-pre">
-              {buildSnippet(a.slug, doc?.tryPath || '/', doc?.tryMethod || 'GET', lang, vaultKey, doc?.tryBody)}
-            </pre>
-          </div>
+          {/* Friendly result */}
+          {result && (
+            <div className={`rounded-xl p-4 border ${result.ok ? 'bg-white border-green-100' : 'bg-red-50 border-red-100'}`}>
+              {result.ok ? (
+                result.friendly ? (
+                  <div className="space-y-2">
+                    {result.friendly.map((row, i) => (
+                      <div key={i} className="flex items-start gap-3">
+                        <span className="text-xs text-gray-400 w-24 flex-shrink-0 capitalize">{row.k}</span>
+                        <span className="text-sm text-gray-800 font-medium">{row.v}</span>
+                      </div>
+                    ))}
+                  </div>
+                ) : (
+                  <p className="text-sm text-gray-500">It worked, but the response didn't have anything simple to show here. Check "View code" below for the raw response.</p>
+                )
+              ) : (
+                <div className="text-xs font-semibold text-red-600">✗ {result.status || 'Error'} — {result.error || 'Something went wrong'}</div>
+              )}
+            </div>
+          )}
 
-          {/* Run live */}
+          {/* View code — collapsed by default, for developers */}
           <div>
-            <div className="flex items-center gap-3 mb-3">
-              <button onClick={run} disabled={running || !vaultKey || !doc?.tryPath}
-                className="px-4 py-2 bg-indigo-600 text-white text-xs rounded-lg hover:bg-indigo-700 disabled:opacity-40 font-semibold flex items-center gap-2 transition-colors">
-                {running ? <><Spin s={3}/><span>Running...</span></> : '▶ Run live'}
-              </button>
-              <span className="text-xs text-gray-400">
-                {!vaultKey ? 'Go to Billing → Reveal key to run' : a.user_price === 0 ? 'Free · no credits used' : `$${a.user_price.toFixed(4)} per call`}
-              </span>
-            </div>
-            {result && (
-              <div className={`rounded-xl p-3 border ${result.ok ? 'bg-green-50 border-green-100' : 'bg-red-50 border-red-100'}`}>
-                <div className={`text-xs font-semibold mb-2 ${result.ok ? 'text-green-700' : 'text-red-600'}`}>
-                  {result.ok ? `✓ ${result.status} OK` : `✗ ${result.status || 'Error'}`}
+            <button onClick={() => setShowCode(s => !s)}
+              className="text-xs text-gray-400 hover:text-gray-600 font-medium flex items-center gap-1 transition-colors">
+              {showCode ? '▾' : '▸'} {showCode ? 'Hide code' : '</> View code'}
+            </button>
+            {showCode && (
+              <div className="mt-3 space-y-3">
+                <div className="flex items-center justify-between">
+                  <div className="flex gap-1 p-1 bg-gray-800 rounded-lg">
+                    {[['js','JS'],['python','Python'],['curl','cURL']].map(([id,lbl]) => (
+                      <button key={id} onClick={() => setLang(id)}
+                        className={`px-2.5 py-1 text-xs rounded-md font-medium transition-colors ${lang===id?'bg-gray-600 text-white':'text-gray-400 hover:text-gray-200'}`}>
+                        {lbl}
+                      </button>
+                    ))}
+                  </div>
+                  <div className="flex items-center gap-2">
+                    {vaultKey && <span className="text-[10px] text-green-500 font-medium">✓ Key loaded</span>}
+                    <CopyBtn text={buildSnippet(a.slug, doc?.tryPath || '/', doc?.tryMethod || 'GET', lang, vaultKey, doc?.tryBody)} />
+                  </div>
                 </div>
-                <pre className="text-xs text-gray-600 font-mono whitespace-pre-wrap overflow-x-auto max-h-48">
-                  {JSON.stringify(result.data || result.error, null, 2)}
-                </pre>
+                <div className="bg-gray-950 rounded-xl p-4 overflow-x-auto">
+                  <pre className="text-xs text-gray-300 font-mono leading-relaxed whitespace-pre">
+                    {buildSnippet(a.slug, doc?.tryPath || '/', doc?.tryMethod || 'GET', lang, vaultKey, doc?.tryBody)}
+                  </pre>
+                </div>
+                {result && (
+                  <div className="bg-gray-950 rounded-xl p-4 overflow-x-auto">
+                    <p className="text-[10px] text-gray-500 mb-2 uppercase tracking-wide">Raw response</p>
+                    <pre className="text-xs text-gray-400 font-mono whitespace-pre-wrap max-h-48 overflow-y-auto">
+                      {JSON.stringify(result.data || result.error, null, 2)}
+                    </pre>
+                  </div>
+                )}
+                <p className="font-mono text-[10px] text-gray-300">/proxy/{a.slug}</p>
               </div>
             )}
           </div>
@@ -271,11 +413,13 @@ function APICard({ a, expanded, onExpand, vaultKey, onAddCredits }) {
   )
 }
 
-// ── Marketplace ───────────────────────────────────────────────────────────────
+// ── Marketplace — guided discovery instead of a full inventory dump ───────────
 function Marketplace({ apis, me, vaultKey, onAddCredits }) {
-  const [filter,    setFilter]    = useState('all')
-  const [search,    setSearch]    = useState('')
-  const [expanded,  setExpanded]  = useState(null)
+  const [task,       setTask]       = useState('all')
+  const [search,     setSearch]     = useState('')
+  const [expanded,   setExpanded]   = useState(null)
+  const [showCats,   setShowCats]   = useState(false)
+  const [catFilter,  setCatFilter]  = useState('all')
   const [requesting, setRequesting] = useState(false)
   const [requestSent, setRequestSent] = useState(false)
 
@@ -283,12 +427,20 @@ function Marketplace({ apis, me, vaultKey, onAddCredits }) {
   const active = apis.filter(a => a.state === 'active')
   const hasLow = parseFloat(me?.credits || 0) < 1
 
+  const activeTask = TASKS.find(t => t.id === task)
+
   const filtered = apis
-    .filter(a => filter === 'all' || a.category === filter)
+    .filter(a => {
+      if (search.trim()) return true // search overrides task/category filtering below
+      if (task !== 'all' && activeTask?.cats && !activeTask.cats.includes(a.category)) return false
+      if (showCats && catFilter !== 'all' && a.category !== catFilter) return false
+      return true
+    })
     .filter(a => {
       if (!search.trim()) return true
       const q = search.toLowerCase()
-      return a.name.toLowerCase().includes(q) || a.slug.toLowerCase().includes(q) || a.description?.toLowerCase().includes(q)
+      return a.name.toLowerCase().includes(q) || a.slug.toLowerCase().includes(q) ||
+        a.description?.toLowerCase().includes(q) || outcomeFor(a).toLowerCase().includes(q)
     })
 
   const showDiscovery = search.trim().length > 1 && filtered.length === 0
@@ -325,11 +477,27 @@ function Marketplace({ apis, me, vaultKey, onAddCredits }) {
         </div>
       )}
 
-      {/* Search */}
-      <div className="relative mb-4">
+      {/* Guided entry: "What are you trying to do?" */}
+      <div className="mb-5">
+        <p className="text-xs font-semibold text-gray-500 mb-2.5">What are you trying to do?</p>
+        <div className="flex gap-2 overflow-x-auto pb-1">
+          {TASKS.map(t => (
+            <button key={t.id} onClick={() => { setTask(t.id); setSearch('') }}
+              className={`flex items-center gap-1.5 px-3.5 py-2 text-xs rounded-xl border transition-all flex-shrink-0 font-medium ${
+                task === t.id ? 'bg-gray-900 text-white border-gray-900' : 'bg-white text-gray-600 border-gray-200 hover:border-gray-400'
+              }`}>
+              <span>{t.icon}</span>
+              {t.label}
+            </button>
+          ))}
+        </div>
+      </div>
+
+      {/* Search — secondary, for when someone already knows the name */}
+      <div className="relative mb-3">
         <span className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 text-sm">🔍</span>
         <input value={search} onChange={e => { setSearch(e.target.value); setRequestSent(false) }}
-          placeholder="Search APIs — or type any API name to request it..."
+          placeholder="Or search by name — e.g. weather, crypto, jokes..."
           className="w-full pl-9 pr-4 py-2.5 text-sm border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-gray-900 placeholder:text-gray-300 bg-white"/>
         {search && (
           <button onClick={() => { setSearch(''); setRequestSent(false) }}
@@ -337,16 +505,23 @@ function Marketplace({ apis, me, vaultKey, onAddCredits }) {
         )}
       </div>
 
-      {/* Category filters */}
-      <div className="flex gap-2 mb-6 overflow-x-auto pb-1">
-        {cats.map(c => (
-          <button key={c} onClick={() => setFilter(c)}
-            className={`px-3 py-1.5 text-xs rounded-lg border transition-all capitalize flex-shrink-0 ${
-              filter === c ? 'bg-gray-900 text-white border-gray-900' : 'bg-white text-gray-500 border-gray-200 hover:border-gray-400'
-            }`}>
-            {c === 'all' ? `All (${apis.length})` : `${c} (${apis.filter(a=>a.category===c).length})`}
-          </button>
-        ))}
+      {/* Advanced: browse by raw category — collapsed, for power users */}
+      <div className="mb-6">
+        <button onClick={() => setShowCats(s => !s)} className="text-xs text-gray-400 hover:text-gray-600 font-medium">
+          {showCats ? '▾' : '▸'} Browse by category instead
+        </button>
+        {showCats && (
+          <div className="flex gap-2 mt-2 overflow-x-auto pb-1">
+            {cats.map(c => (
+              <button key={c} onClick={() => setCatFilter(c)}
+                className={`px-3 py-1.5 text-xs rounded-lg border transition-all capitalize flex-shrink-0 ${
+                  catFilter === c ? 'bg-gray-900 text-white border-gray-900' : 'bg-white text-gray-500 border-gray-200 hover:border-gray-400'
+                }`}>
+                {c === 'all' ? `All (${apis.length})` : `${c} (${apis.filter(a=>a.category===c).length})`}
+              </button>
+            ))}
+          </div>
+        )}
       </div>
 
       {/* Discovery prompt */}
@@ -365,6 +540,13 @@ function Marketplace({ apis, me, vaultKey, onAddCredits }) {
               {requesting ? 'Sending...' : `Request "${search}"`}
             </button>
           )}
+        </div>
+      )}
+
+      {/* Empty state when a task bucket has nothing active yet */}
+      {!showDiscovery && filtered.length === 0 && (
+        <div className="p-8 text-center text-gray-300 text-sm">
+          Nothing here yet for this — try "Everything" or search by name above.
         </div>
       )}
 
