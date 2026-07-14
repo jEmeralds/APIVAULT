@@ -21,6 +21,13 @@ proxyRoute.all('/:service/*?', auth, async (req, res) => {
   const api = await registry.resolve(service)
   if (!api) return res.status(404).json({ error: `API '${service}' not found or paused` })
 
+  // Scoped key enforcement — only applies if this request came in on a scoped
+  // key (req.keyScope is an array). Default keys have req.keyScope === undefined
+  // and skip this entirely, so nothing changes for the vast majority of requests.
+  if (Array.isArray(req.keyScope) && !req.keyScope.includes(service)) {
+    return res.status(403).json({ error: `This key is not scoped for '${service}'` })
+  }
+
   const isFree = api.cost_per_call === 0 || api.cost_per_call === '0'
 
   // Pool circuit breaker — skip for free APIs (no pool spend)

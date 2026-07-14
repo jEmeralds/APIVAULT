@@ -46,7 +46,16 @@ export async function jwtAuth(req, res, next) {
 }
 
 // ─── Vault key auth — for proxy/API routes (/proxy/*) ────────────────────
-// Reads x-vault-key header
+// Reads x-vault-key header.
+//
+// Lookup order:
+// 1. users.vault_key — the original single default key every account has.
+//    This path is COMPLETELY UNCHANGED from before scoped keys existed —
+//    every existing user's key keeps working exactly as it did.
+// 2. vault_keys table — NEW, optional, additive. Only checked if #1 misses.
+//    A key found here may carry a `scopes` array restricting which APIs it
+//    can call; req.keyScope is set so proxy.js can enforce that restriction.
+//    req.keyScope stays undefined for default keys, meaning "no restriction."
 export async function auth(req, res, next) {
   const rawKey = req.headers['x-vault-key']
   if (!rawKey) return res.status(401).json({ error: 'No vault key provided' })
@@ -57,23 +66,43 @@ export async function auth(req, res, next) {
     return res.status(429).json({ error: 'Too many failed attempts. Try again in 1 hour.' })
   }
 
+  // 1. Default key path — unchanged
   const { data: user, error } = await db
     .from('users')
     .select('id, credits, status, role, plan')
     .eq('vault_key', key)
     .single()
 
-  if (error || !user) {
-    limiter.recordBadKey(req.ip)
-    return res.status(401).json({ error: 'Invalid vault key' })
+  if (!error && user) {
+    if (user.status === 'suspended') {
+      return res.status(403).json({ error: 'Account suspended. Contact support.' })
+    }
+    req.user = user
+    // req.keyScope intentionally left undefined — default key, full access
+    return next()
   }
 
-  if (user.status === 'suspended') {
-    return res.status(403).json({ error: 'Account suspended. Contact support.' })
+  // 2. Scoped key path — new, additive
+  const { data: scopedKey } = await db
+    .from('vault_keys')
+    .select('id, scopes, users(id, credits, status, role, plan)')
+    .eq('key', key)
+    .eq('revoked', false)
+    .single()
+
+  if (scopedKey?.users) {
+    if (scopedKey.users.status === 'suspended') {
+      return res.status(403).json({ error: 'Account suspended. Contact support.' })
+    }
+    req.user = scopedKey.users
+    req.keyScope = scopedKey.scopes // null = full access, array = restricted to those slugs
+    // Fire-and-forget — don't block the request on this
+    db.from('vault_keys').update({ last_used_at: new Date().toISOString() }).eq('id', scopedKey.id).then(() => {})
+    return next()
   }
 
-  req.user = user
-  next()
+  limiter.recordBadKey(req.ip)
+  return res.status(401).json({ error: 'Invalid vault key' })
 }
 
 // ─── Admin auth — JWT-based, checks role === 'admin' ─────────────────────

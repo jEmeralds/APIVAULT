@@ -195,6 +195,53 @@ userRoute.post('/request-api', async (req, res) => {
   res.json({ ok: true, status: 'pending', discovery: true })
 })
 
+// GET /user/keys — list all keys for this user (default + any scoped keys)
+// Additive feature — most users will only ever see their one default key here.
+userRoute.get('/keys', async (req, res) => {
+  const { data: scopedKeys } = await db
+    .from('vault_keys')
+    .select('id, label, scopes, revoked, created_at, last_used_at')
+    .eq('user_id', req.user.id)
+    .order('created_at', { ascending: false })
+
+  res.json({
+    default_key_active: true, // the users.vault_key key always exists
+    scoped_keys: scopedKeys || [],
+  })
+})
+
+// POST /user/keys — create a new scoped key
+// body: { label: string, scopes: string[] | null }  (null/omitted = full access)
+userRoute.post('/keys', async (req, res) => {
+  const { label, scopes } = req.body
+  const { randomUUID } = await import('crypto')
+  const newKey = randomUUID()
+
+  const { data, error } = await db.from('vault_keys').insert({
+    user_id: req.user.id,
+    key:     newKey,
+    label:   label || 'Untitled key',
+    scopes:  Array.isArray(scopes) && scopes.length ? scopes : null,
+  }).select('id, label, scopes, created_at').single()
+
+  if (error) return res.status(500).json({ error: error.message })
+
+  // Full key value is only ever returned once, at creation — same pattern as
+  // the default vault key, which is masked everywhere except right after reveal.
+  res.json({ ...data, key: `sk-vault-${newKey}` })
+})
+
+// DELETE /user/keys/:id — revoke a scoped key
+userRoute.delete('/keys/:id', async (req, res) => {
+  const { error } = await db
+    .from('vault_keys')
+    .update({ revoked: true })
+    .eq('id', req.params.id)
+    .eq('user_id', req.user.id) // ensure users can only revoke their own keys
+  if (error) return res.status(500).json({ error: error.message })
+  res.json({ ok: true })
+})
+
 // GET /user/key — masked vault key
 userRoute.get('/key', async (req, res) => {
   const { data } = await db.from('users').select('vault_key').eq('id', req.user.id).single()
