@@ -83,8 +83,13 @@ userRoute.get('/marketplace', async (req, res) => {
   const credits = parseFloat(user?.credits || 0)
 
   const { data: apis } = await db.from('api_registry')
-    .select('slug, name, category, cost_per_call, markup, status, description, master_key_ref')
+    .select('slug, name, category, cost_per_call, markup, status, description, master_key_ref, health_status')
     .in('status', ['live', 'paused'])
+    // Hide APIs currently failing their health check from marketplace discovery —
+    // same rule as showcase.js. This does NOT touch 'status', so if a user already
+    // has this API integrated, their real /proxy/... calls keep working unaffected;
+    // it's only hidden from being newly discovered/browsed while degraded.
+    .neq('health_status', 'degraded')
     .order('name')
 
   const result = (apis || []).map(api => {
@@ -119,7 +124,7 @@ userRoute.get('/marketplace', async (req, res) => {
       ready = true
     }
 
-    const { master_key_ref, ...safeApi } = api
+    const { master_key_ref, health_status, ...safeApi } = api
     return { ...safeApi, user_price: userPrice, has_access, state, ready, credits_available: credits }
   })
 
