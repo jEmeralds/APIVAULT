@@ -23,6 +23,19 @@ export const billing = {
       .then(() => {}, err => console.error('usage_log write failed', err))
   },
 
+  // Sum of charged amount in the last 24h — used to enforce daily_spend_cap.
+  // Reuses the existing usage_log table rather than tracking spend separately,
+  // so this is purely additive: no new writes, just a read on an existing table.
+  async getDailySpend(userId) {
+    const since = new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString()
+    const { data } = await db
+      .from('usage_log')
+      .select('charged')
+      .eq('user_id', userId)
+      .gte('ts', since)
+    return (data || []).reduce((sum, row) => sum + (row.charged || 0), 0)
+  },
+
   // Credit user after Paystack payment — idempotent via paystack_events table.
   // reference: Paystack transaction reference (unique per payment)
   // usdAmount: dollar amount to credit (number, not cents)

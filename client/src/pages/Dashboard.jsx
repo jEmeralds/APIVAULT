@@ -784,6 +784,72 @@ function ScopedKeys({ apis }) {
   )
 }
 
+// ── Daily spend limit — visible by default (not hidden behind "advanced"),
+// since it's a safety feature everyone benefits from knowing about. Still
+// zero required steps: it shows the automatic $20 default until changed.
+function SpendCapCard({ me, setMe }) {
+  const [editing, setEditing] = useState(false)
+  const [val,     setVal]     = useState(me?.daily_spend_cap ?? '')
+  const [saving,  setSaving]  = useState(false)
+  const [err,     setErr]     = useState('')
+
+  const current = me?.daily_spend_cap
+
+  async function save() {
+    setSaving(true); setErr('')
+    try {
+      const res = await fetch(`${BASE}/user/spend-cap`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${localStorage.getItem('token')}` },
+        body: JSON.stringify({ cap: val === '' ? null : parseFloat(val) }),
+      })
+      const d = await res.json()
+      if (!res.ok) throw new Error(d.error)
+      setMe(p => ({ ...p, daily_spend_cap: d.daily_spend_cap }))
+      setEditing(false)
+    } catch (e) { setErr(e.message) }
+    setSaving(false)
+  }
+
+  return (
+    <div className="bg-white border border-gray-100 rounded-xl p-5 mb-4">
+      <div className="flex items-center justify-between mb-1">
+        <div className="text-sm font-bold text-gray-900">Daily spend limit</div>
+        {!editing && (
+          <button onClick={() => { setVal(current ?? ''); setEditing(true) }}
+            className="text-xs text-gray-500 hover:text-gray-700 font-medium">Change</button>
+        )}
+      </div>
+      <p className="text-xs text-gray-400 mb-3">
+        Automatically pauses paid API calls if you spend more than this in 24 hours — protects you from a bug or runaway script running up a bill.
+      </p>
+      {!editing ? (
+        <div className="text-lg font-bold text-gray-900">
+          {current == null ? 'No limit' : `$${Number(current).toFixed(2)} / day`}
+        </div>
+      ) : (
+        <div>
+          <div className="flex items-center gap-2">
+            <div className="relative flex-1">
+              <span className="absolute left-3 top-1/2 -translate-y-1/2 text-sm text-gray-400">$</span>
+              <input type="number" min="1" max="1000" value={val} onChange={e => setVal(e.target.value)}
+                placeholder="No limit"
+                className="w-full pl-7 pr-3 py-2 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-gray-900 placeholder:text-gray-300"/>
+            </div>
+            <button onClick={save} disabled={saving}
+              className="px-4 py-2 bg-gray-900 text-white text-xs rounded-lg font-semibold hover:bg-gray-800 disabled:opacity-40 transition-colors">
+              {saving ? '...' : 'Save'}
+            </button>
+            <button onClick={() => setEditing(false)} className="px-3 py-2 text-xs text-gray-400 hover:text-gray-600">Cancel</button>
+          </div>
+          {err && <div className="text-xs text-red-500 mt-1.5">{err}</div>}
+          <div className="text-xs text-gray-300 mt-1.5">Leave blank to remove the limit entirely (not recommended).</div>
+        </div>
+      )}
+    </div>
+  )
+}
+
 function Billing({ me, setMe, vaultKey, setVaultKey, apis }) {
   const [notice,   setNotice]   = useState(null)
   const [revealed, setRevealed] = useState(false)
@@ -821,6 +887,8 @@ function Billing({ me, setMe, vaultKey, setVaultKey, apis }) {
           ))}
         </div>
       </div>
+
+      <SpendCapCard me={me} setMe={setMe} />
 
       <div className="bg-white border border-gray-100 rounded-xl p-5 mb-4">
         <div className="text-sm font-bold text-gray-900 mb-3">Your vault key</div>

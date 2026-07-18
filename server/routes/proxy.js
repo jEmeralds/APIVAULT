@@ -43,6 +43,19 @@ proxyRoute.all('/:service/*?', auth, async (req, res) => {
 
   // Deduct credits only for paid APIs
   if (charged > 0) {
+    // Daily spend cap — protects against runaway bills independent of the
+    // 1000-calls/day count limit above, which doesn't account for per-call price.
+    // null cap means the user explicitly removed it in Billing.
+    const cap = user.daily_spend_cap
+    if (cap !== null && cap !== undefined) {
+      const spentToday = await billing.getDailySpend(user.id)
+      if (spentToday + charged > cap) {
+        return res.status(402).json({
+          error: `Daily spend limit of $${cap.toFixed(2)} reached (spent $${spentToday.toFixed(2)} so far today). Raise it in Billing → Daily spend limit.`,
+        })
+      }
+    }
+
     const deducted = await billing.deduct(user.id, charged)
     if (!deducted) return res.status(402).json({ error: 'Insufficient credits. Top up to continue.' })
   }

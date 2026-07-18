@@ -9,7 +9,7 @@ userRoute.use(jwtAuth)
 // GET /user/me
 userRoute.get('/me', async (req, res) => {
   const { data } = await db.from('users')
-    .select('id, email, credits, plan, role, created_at')
+    .select('id, email, credits, plan, role, created_at, daily_spend_cap')
     .eq('id', req.user.id).single()
   res.json(data)
 })
@@ -193,6 +193,19 @@ userRoute.post('/request-api', async (req, res) => {
   })
 
   res.json({ ok: true, status: 'pending', discovery: true })
+})
+
+// PATCH /user/spend-cap — update the user's daily spend limit
+// body: { cap: number | null }  (null explicitly removes the cap — allowed,
+// but the UI should make clear this removes a safety net)
+userRoute.patch('/spend-cap', async (req, res) => {
+  const { cap } = req.body
+  if (cap !== null && (typeof cap !== 'number' || cap < 1 || cap > 1000)) {
+    return res.status(400).json({ error: 'Cap must be a number between $1 and $1000, or null to remove it' })
+  }
+  const { error } = await db.from('users').update({ daily_spend_cap: cap }).eq('id', req.user.id)
+  if (error) return res.status(500).json({ error: error.message })
+  res.json({ ok: true, daily_spend_cap: cap })
 })
 
 // GET /user/keys — list all keys for this user (default + any scoped keys)

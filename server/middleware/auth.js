@@ -66,10 +66,10 @@ export async function auth(req, res, next) {
     return res.status(429).json({ error: 'Too many failed attempts. Try again in 1 hour.' })
   }
 
-  // 1. Default key path — unchanged
+  // 1. Default key path — unchanged except selecting daily_spend_cap for spend-cap enforcement
   const { data: user, error } = await db
     .from('users')
-    .select('id, credits, status, role, plan')
+    .select('id, credits, status, role, plan, daily_spend_cap')
     .eq('vault_key', key)
     .single()
 
@@ -85,7 +85,7 @@ export async function auth(req, res, next) {
   // 2. Scoped key path — new, additive
   const { data: scopedKey } = await db
     .from('vault_keys')
-    .select('id, scopes, users(id, credits, status, role, plan)')
+    .select('id, scopes, users(id, credits, status, role, plan, daily_spend_cap)')
     .eq('key', key)
     .eq('revoked', false)
     .single()
